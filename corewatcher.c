@@ -48,6 +48,23 @@
 #define g_timeout_add_seconds(a, b, c) g_timeout_add((a)*1000, b, c)
 #endif
 
+#if defined(__i386__)
+#  define __NR_ioprio_set 289
+#elif defined(__x86_64__)
+#  define __NR_ioprio_set 251
+#elif defined(__arm__)
+#  define __NR_ioprio_set 314
+#elif defined (__powerpc__)
+#  define __NR_ioprio_set 273
+#else
+#  error "Unsupported arch"
+#endif
+#define IOPRIO_WHO_PROCESS 1
+#define IOPRIO_CLASS_RT 1
+#define IOPRIO_CLASS_IDLE 3
+#define IOPRIO_CLASS_SHIFT 13
+#define IOPRIO_IDLE_LOWEST (7 |  (IOPRIO_CLASS_IDLE << IOPRIO_CLASS_SHIFT))
+#define IOPRIO_RT_LOWEST (7 |  (IOPRIO_CLASS_RT << IOPRIO_CLASS_SHIFT))
 
 #include "corewatcher.h"
 
@@ -163,6 +180,11 @@ int main(int argc, char**argv)
 #ifdef PR_SET_TIMERSLACK
 	prctl(PR_SET_TIMERSLACK,1000*1000*1000, 0, 0, 0);
 #endif
+	/* Be easier on the rest of the system */
+	if (syscall(__NR_ioprio_set, IOPRIO_WHO_PROCESS, pid,
+		    IOPRIO_IDLE_LOWEST) == -1)
+		perror("Can not set IO priority to lowest IDLE class");
+	nice(15);
 
 	read_config_file("/etc/corewatcher.conf");
 
