@@ -181,7 +181,7 @@ int main(int argc, char**argv)
 	prctl(PR_SET_TIMERSLACK,1000*1000*1000, 0, 0, 0);
 #endif
 	/* Be easier on the rest of the system */
-	if (syscall(__NR_ioprio_set, IOPRIO_WHO_PROCESS, pid,
+	if (syscall(__NR_ioprio_set, IOPRIO_WHO_PROCESS, getpid(),
 		    IOPRIO_IDLE_LOWEST) == -1)
 		perror("Can not set IO priority to lowest IDLE class");
 	nice(15);
