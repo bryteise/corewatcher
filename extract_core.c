@@ -16,7 +16,9 @@ char *extract_core(char *corefile)
 	if (!appfile)
 		return NULL;
 
-	asprintf(&command, "gdb --batch -f %s %s -x gdb.command 2> /dev/null", appfile, corefile);
+	if (asprintf(&command, "gdb --batch -f %s %s -x gdb.command 2> /dev/null", appfile, corefile) < 0)
+		return NULL;
+		
 	file = popen(command, "r");
 	while (!feof(file)) {
 		size_t size = 0;
@@ -37,20 +39,27 @@ char *extract_core(char *corefile)
 
 		if (c1) {
 			c1 = NULL;
-			asprintf(&c1, "%s%s", c2, line);
+			if (asprintf(&c1, "%s%s", c2, line) < 0)
+				continue;
 			free(c2);
 		} else {
 			c1 = NULL;
-			asprintf(&c1, "%s", line);
+			if (asprintf(&c1, "%s", line) < 0)
+				continue;
 		}
 		free(line);
 	}
 	pclose(file);
+	free(command);
 	return c1;
 }
 
-void main()
+int main(int argc, char **argv)
 {
-	printf("FOO %s\n", extract_core("/var/cores/core.3824"));
-
+	if (argc <= 1) {
+		printf("Usage:\n\textract_core <core file>\n");
+		return EXIT_FAILURE;
+	}
+	printf("%s\n", extract_core(argv[1]));
+	return EXIT_SUCCESS;
 }
