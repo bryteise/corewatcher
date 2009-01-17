@@ -6,6 +6,9 @@
 #include <unistd.h>
 
 #include <sys/inotify.h>
+#include <sys/types.h>
+
+#include <dirent.h>
 
 
 #include "coredumper.h"
@@ -102,6 +105,24 @@ void wait_for_corefile(void)
 
 }
 
+void clean_directory(void)
+{
+	DIR *dir;
+	struct dirent *entry;
+	char fullpath[8192];
+ 
+	dir = opendir("/var/cores/");
+	do {
+		entry = readdir(dir);
+		if (!entry)
+			break;
+		sprintf(fullpath, "/var/cores/%s", entry->d_name);
+		process_corefile(fullpath);
+	} while (entry);
+
+	closedir(dir);
+}
+
 int main(int argc, char **argv)
 {
 	inotifd = inotify_init();
@@ -111,10 +132,12 @@ int main(int argc, char **argv)
 	}
 	inotify_descriptor = inotify_add_watch(inotifd, "/var/cores/", IN_CLOSE_WRITE);
 
-	if (argc > 1)
+	if (argc > 1) {
 		process_corefile(argv[1]);
-	else
+	} else {
+		clean_directory();
 		wait_for_corefile();
+	}
 
 
 	inotify_rm_watch(inotifd, inotify_descriptor);

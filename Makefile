@@ -7,5 +7,6 @@ corewatcher: $(LIBS) coredumper.h Makefile
 	gcc $(CFLAGS) $(LIBS) -o extract_core
 	
 clean:
-	rm -f *.o extract_core DEADJOE corewatches
+	rm -f *.o extract_core DEADJOE corewatches *~
+	
 	
