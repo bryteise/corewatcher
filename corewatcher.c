@@ -23,6 +23,12 @@
 #include <sys/types.h>
 
 #include <dirent.h>
+#include <glib.h>
+#include <dbus/dbus.h>
+#include <dbus/dbus-glib.h>
+#include <dbus/dbus-glib-lowlevel.h>
+
+GList *coredumps;
 
 
 #include "coredumper.h"
@@ -98,6 +104,7 @@ void process_corefile(char *filename)
 	if (!ptr)
 		return;
 
+	coredumps = g_list_append(coredumps, ptr);
 	printf("-%s-\n", ptr);
 	unlink(filename);
 
@@ -137,24 +144,52 @@ void clean_directory(void)
 	closedir(dir);
 }
 
-int main(int argc, char **argv)
+int main(int __unused argc, char __unused **argv)
 {
+	GMainLoop *loop;
+	DBusError error;
+	GPollFD GPFD;
+	memset(&GPFD, 0, sizeof(GPFD));
+
+/*
+ * Signal the kernel that we're not timing critical
+ */
+#ifdef PR_SET_TIMERSLACK
+	prctl(PR_SET_TIMERSLACK,1000*1000*1000, 0, 0, 0);
+#endif
+
 	inotifd = inotify_init();
+	GPFD.fd = inotifd;
 	if (inotifd < 0) {
 		printf("No inotify support in the kernel... aborting\n");
 		return EXIT_FAILURE;
 	}
 	inotify_descriptor = inotify_add_watch(inotifd, "/var/cores/", IN_CLOSE_WRITE);
 
-	if (argc > 1) {
-		process_corefile(argv[1]);
-	} else {
-		clean_directory();
-		wait_for_corefile();
+
+	clean_directory();
+	
+	loop = g_main_loop_new(NULL, FALSE);
+	dbus_error_init(&error);
+	bus = dbus_bus_get(DBUS_BUS_SYSTEM, &error);
+	if (bus) {
+		dbus_connection_setup_with_g_main(bus, NULL);
+		dbus_bus_add_match(bus, "type='signal',interface='org.moblin.coredump.ping'", &error);
+		dbus_bus_add_match(bus, "type='signal',interface='org.moblin.coredump.permission'", &error);
+		dbus_connection_add_filter(bus, got_message, NULL, NULL);
 	}
 
+	g_main_context_add_poll(NULL, &GPFD, 0);
+
+	g_main_loop_run(loop);
+	dbus_bus_remove_match(bus, "type='signal',interface='org.kerneloops.submit.ping'", &error);
+	dbus_bus_remove_match(bus, "type='signal',interface='org.kerneloops.submit.permission'", &error);
+
+	g_main_loop_unref(loop);
 
 	inotify_rm_watch(inotifd, inotify_descriptor);
 	close(inotifd);
 	return EXIT_SUCCESS;
 }
+
+
