@@ -22,6 +22,8 @@ extern void dbus_say_thanks(void);
 extern GList *coredumps;
 extern void submit_queue(void);
 extern void clear_queue(void);
+extern void read_config_file(char *filename);
+
 
 #include <dbus/dbus.h>
 #include <dbus/dbus-glib.h>

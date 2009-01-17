@@ -28,7 +28,7 @@
 DBusConnection *bus;
 
 int pinged;
-int opted_in = 1;
+extern int opted_in;
 
 DBusHandlerResult got_message(
 		DBusConnection __unused *conn,

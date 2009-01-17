@@ -23,7 +23,7 @@
 
 #include "coredumper.h"
 
-char *submit_url = "http://localhost/submit_backtrace.php";
+extern char *submit_url;
 
 void submit_queue(void)
 {

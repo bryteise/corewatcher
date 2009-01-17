@@ -151,6 +151,8 @@ int main(int __unused argc, char __unused **argv)
 	GPollFD GPFD;
 	memset(&GPFD, 0, sizeof(GPFD));
 
+	read_config_file("/etc/corewatcher");
+
 /*
  * Signal the kernel that we're not timing critical
  */
