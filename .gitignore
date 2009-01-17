@@ -3,4 +3,4 @@ DEADJOE
 extract_oops
 core.*
 corewatcher
-
+*.o
