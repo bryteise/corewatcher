@@ -1,4 +1,6 @@
 *~
 DEADJOE
 extract_oops
-core*
+core.*
+corewatcher
+

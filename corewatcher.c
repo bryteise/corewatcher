@@ -82,6 +82,7 @@ void process_corefile(char *filename)
 		return;
 
 	printf("-%s-\n", ptr);
+	unlink(filename);
 
 	free(ptr);
 }
