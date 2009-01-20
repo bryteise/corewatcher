@@ -18,13 +18,14 @@
 #define PATH_MAX 4096
 #endif
 
-#include "coredumper.h"
+#include "corewatcher.h"
 
 char *find_executable(char *fragment)
 {
 	char *path, *c1, *c2;
-	path = strdup(getenv("PATH"));
  	static char filename[PATH_MAX*2];
+
+	path = strdup(getenv("PATH"));
 
 	if (strlen(fragment) < 3)
 		return NULL;

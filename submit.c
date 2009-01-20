@@ -63,7 +63,7 @@ struct oops {
  * we later find our marker indicating we submitted everything so far already
  * previously.
  */
-static struct oops *queued_oopses;
+static struct oops *queued_backtraces;
 static int newoops;
 
 /* For communicating details to the applet, we write the
@@ -84,7 +84,7 @@ static unsigned int checksum(char *ptr)
 	return temp;
 }
 
-void queue_oops(char *oops)
+void queue_backtrace(char *oops)
 {
 	int i;
 	unsigned int sum;
@@ -104,10 +104,10 @@ void queue_oops(char *oops)
 
 	new = malloc(sizeof(struct oops));
 	memset(new, 0, sizeof(struct oops));
-	new->next = queued_oopses;
+	new->next = queued_backtraces;
 	new->checksum = sum;
 	new->text = strdup(oops);
-	queued_oopses = new;
+	queued_backtraces = new;
 	newoops = 1;
 }
 
@@ -131,7 +131,7 @@ void write_detail_file(void)
 	 */
 	fchmod(temp_fileno, 0644);
 	tmpf = fdopen(temp_fileno, "w");
-	oops = queued_oopses;
+	oops = queued_backtraces;
 	while (oops) {
 		count++; /* Users are not programmers, start at 1 */
 		fprintf(tmpf, "Kernel failure message %d:\n", count);
@@ -158,8 +158,8 @@ static void print_queue(void)
 	struct oops *queue;
 	int count = 0;
 
-	queue = queued_oopses;
-	queued_oopses = NULL;
+	queue = queued_backtraces;
+	queued_backtraces = NULL;
 	barrier();
 	oops = queue;
 	while (oops) {
@@ -215,8 +215,8 @@ void submit_queue(void)
 		return;
 	}
 
-	queue = queued_oopses;
-	queued_oopses = NULL;
+	queue = queued_backtraces;
+	queued_backtraces = NULL;
 	barrier();
 	oops = queue;
 	while (oops) {
@@ -274,8 +274,8 @@ void clear_queue(void)
 	struct oops *oops, *next;
 	struct oops *queue;
 
-	queue = queued_oopses;
-	queued_oopses = NULL;
+	queue = queued_backtraces;
+	queued_backtraces = NULL;
 	barrier();
 	oops = queue;
 	while (oops) {
@@ -293,7 +293,7 @@ void ask_permission(void)
 		return;
 	pinged = 0;
 	newoops = 0;
-	if (queued_oopses) {
+	if (queued_backtraces) {
 		write_detail_file();
 		dbus_ask_permission(detail_filename);
 	}

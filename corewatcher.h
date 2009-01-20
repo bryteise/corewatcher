@@ -1,7 +1,7 @@
 /*
  * Copyright 2007, Intel Corporation
  *
- * This file is part of kerneloops.org
+ * This file is part of corewatcher.org
  *
  * This program file is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -30,12 +30,11 @@
 #define barrier() __asm__ __volatile__("": : :"memory")
 #define __unused  __attribute__ ((__unused__))
 
-extern void queue_oops(char *oops);
+extern void queue_backtrace(char *oops);
 extern void submit_queue(void);
 extern void clear_queue(void);
 
 extern int scan_dmesg(void * unused);
-extern void scan_filename(char *filename, int issyslog);
 extern void read_config_file(char *filename);
 
 extern void ask_permission(void);
@@ -49,6 +48,8 @@ extern char *submit_url;
 extern int testmode;
 extern int pinged;
 
+extern char *find_executable(char *fragment);
+extern char *find_coredump(char *corefile);
 
 
 #endif

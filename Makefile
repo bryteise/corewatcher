@@ -29,8 +29,8 @@ noui:	corewatcher corewatcher.8.gz
 	$(CC) $(CFLAGS) $(MY_CFLAGS) -c -o $@ $<
  
 
-corewatcher:	corewatcher.o submit.o dmesg.o configfile.o corewatcher.h
-	gcc corewatcher.o submit.o dmesg.o configfile.o $(LDF_D) -o corewatcher
+corewatcher:	corewatcher.o submit.o coredump.o configfile.o find_file.o corewatcher.h
+	gcc corewatcher.o submit.o coredump.o configfile.o find_file.o $(LDF_D) -o corewatcher
 	@(cd po/ && $(MAKE))
 
 corewatcher-applet: corewatcher-applet.o

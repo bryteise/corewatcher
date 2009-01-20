@@ -190,24 +190,13 @@ int main(int argc, char**argv)
 	/* during boot... don't go too fast and slow the system down */
 	if (!testmode)
 		sleep(10);
-	scan_filename("/var/log/messages", 1);
-
-	if (argc > 2 && strstr(argv[1], "--file"))
-		scan_filename(argv[2], 1);
-
-	if (testmode && argc > 2) {
-		int q;
-		for (q = 2; q < argc; q++) {
-			printf("Scanning %s\n", argv[q]);
-			scan_filename(argv[q], 0);
-		}
-	}
 
 	if (testmode) {
 		g_main_loop_unref(loop);
 		dbus_bus_remove_match(bus, "type='signal',interface='org.corewatcher.submit.ping'", &error);
 		dbus_bus_remove_match(bus, "type='signal',interface='org.corewatcher.submit.permission'", &error);
 		free(submit_url);
+		printf("Exiting from testmode\n");
 		return EXIT_SUCCESS;
 	}
 
