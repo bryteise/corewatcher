@@ -16,54 +16,54 @@ msgstr ""
 "Content-Type: text/plain; charset=CHARSET\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: kerneloops-applet.c:170 kerneloops-applet.c:212
+#: corewatcher-applet.c:170 corewatcher-applet.c:212
 msgid "Always"
 msgstr ""
 
-#: kerneloops-applet.c:332
+#: corewatcher-applet.c:332
 #, c-format
 msgid "Connecting to system bus failed: %s\n"
 msgstr ""
 
-#: kerneloops-applet.c:190
+#: corewatcher-applet.c:190
 msgid ""
 "Diagnostic information from your Linux kernel has been sent to <a href="
-"\"http://www.kerneloops.org\">www.kerneloops.org</a> for the Linux kernel "
+"\"http://www.corewatcher.org\">www.corewatcher.org</a> for the Linux kernel "
 "developers to work on. \n"
 "Thank you for contributing to improve the quality of the Linux kernel.\n"
 msgstr ""
 
-#: kerneloops-applet.c:188
+#: corewatcher-applet.c:188
 msgid "Kernel bug diagnostic information sent"
 msgstr ""
 
-#: kerneloops-applet.c:176
+#: corewatcher-applet.c:176
 msgid "Never"
 msgstr ""
 
-#: kerneloops-applet.c:214
+#: corewatcher-applet.c:214
 msgid "Never again"
 msgstr ""
 
-#: kerneloops-applet.c:174
+#: corewatcher-applet.c:174
 msgid "No"
 msgstr ""
 
-#: kerneloops-applet.c:143
+#: corewatcher-applet.c:143
 msgid ""
 "There is diagnostic information available for this failure. Do you want to "
-"submit this information to the <a href=\"http://www.kerneloops.org/\">www."
-"kerneloops.org</a> website for use by the Linux kernel developers?\n"
+"submit this information to the <a href=\"http://www.corewatcher.org/\">www."
+"corewatcher.org</a> website for use by the Linux kernel developers?\n"
 msgstr ""
 
-#: kerneloops-applet.c:172
+#: corewatcher-applet.c:172
 msgid "Yes"
 msgstr ""
 
-#: kerneloops-applet.c:141
+#: corewatcher-applet.c:141
 msgid "Your system had a kernel failure"
 msgstr ""
 
-#: kerneloops-applet.c:343
-msgid "kerneloops client"
+#: corewatcher-applet.c:343
+msgid "corewatcher client"
 msgstr ""
