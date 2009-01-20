@@ -76,7 +76,7 @@ static void write_config(char *permission)
 	FILE *file;
 	char filename[2*PATH_MAX];
 
-	sprintf(filename, "%s/.corewatches", getenv("HOME"));
+	sprintf(filename, "%s/.kerneloops", getenv("HOME"));
 	file = fopen(filename, "w");
 	if (!file) {
 		printf("error is %s \n", strerror(errno));
@@ -93,8 +93,8 @@ static void write_config(char *permission)
 static void send_permission(char *answer)
 {
 	DBusMessage *message;
-	message = dbus_message_new_signal("/org/moblin/coredump/permission",
-			"org.moblin.coredump.permission", answer);
+	message = dbus_message_new_signal("/org/kerneloops/submit/permission",
+			"org.kerneloops.submit.permission", answer);
 	dbus_connection_send(bus, message, NULL);
 	dbus_message_unref(message);
 	detail_file_name = NULL;
@@ -229,11 +229,11 @@ static void detail_action(NotifyNotification __unused *notify,
 
 static void got_a_message(void)
 {
-	char *summary = _("Your system had an application failure");
+	char *summary = _("Your system had a kernel failure");
 	char *message =
 	       _("There is diagnostic information available for this failure."
-		" Do you want to submit this information to the <a href=\"http://www.moblin.org/\">www.moblin.org</a>"
-		" website for use by the Moblin developers?\n");
+		" Do you want to submit this information to the <a href=\"http://www.kerneloops.org/\">www.kerneloops.org</a>"
+		" website for use by the Linux kernel developers?\n");
 
 	NotifyActionCallback callback = notify_action;
 
@@ -241,7 +241,7 @@ static void got_a_message(void)
 	close_notification();
 
 	notify = notify_notification_new(summary, message,
-				"/usr/share/corewatcher/icon.png", NULL);
+				"/usr/share/kerneloops/icon.png", NULL);
 
 	notify_notification_set_timeout(notify, 0);
 	notify_notification_set_urgency(notify, NOTIFY_URGENCY_CRITICAL);
@@ -282,23 +282,32 @@ static void sent_an_oops(void)
 	char *summary = _("Kernel bug diagnostic information sent");
 	char *message = NULL;
 	char *message_1 =
-		_("Diagnostic information for your application has been "
-		  "sent to <a href=\"http://www.moblin.org\">www.moblin.org</a> "
-		  "for the Moblin developers to work on. \n"
-		  "Thank you for contributing to improve the quality of the Moblin distribution.\n");
+		_("Diagnostic information from your Linux kernel has been "
+		  "sent to <a href=\"http://www.kerneloops.org\">www.kerneloops.org</a> "
+		  "for the Linux kernel developers to work on. \n"
+		  "Thank you for contributing to improve the quality of the Linux kernel.\n");
 
+	char *message_2 =
+		_("Diagnostic information from your Linux kernel has been "
+		  "sent to <a href=\"http://www.kerneloops.org\">www.kerneloops.org</a> "
+		  "for the Linux kernel developers to work on. \n"
+		  "Thank you for contributing to improve the quality of the Linux kernel.\n"
+		"You can view your submitted oops <a href=\"%s\">here</a>\n");
 	NotifyActionCallback callback = notify_action;
 
 	close_notification();
 
 
-	message = g_strdup_printf("%s", message_1);
+	if (strlen(url_to_oops)==0)
+		message = g_strdup_printf("%s", message_1);
+	else
+		message = g_strdup_printf(message_2, url_to_oops);
 
 
 	url_to_oops[0] = 0;
 
 	notify = notify_notification_new(summary, message,
-				"/usr/share/corewatcher/icon.png", NULL);
+				"/usr/share/kerneloops/icon.png", NULL);
 
 	notify_notification_set_timeout(notify, 5000);
 	notify_notification_set_urgency(notify, NOTIFY_URGENCY_LOW);
@@ -338,8 +347,8 @@ static void got_an_url(DBusMessage *message)
 static void trigger_daemon(void)
 {
 	DBusMessage *message;
-	message = dbus_message_new_signal("/org/moblin/coredump/ping",
-			"org.moblin.coredump.ping", "ping");
+	message = dbus_message_new_signal("/org/kerneloops/submit/ping",
+			"org.kerneloops.submit.ping", "ping");
 	dbus_connection_send(bus, message, NULL);
 	dbus_message_unref(message);
 }
@@ -360,7 +369,7 @@ static DBusHandlerResult dbus_gotmessage(DBusConnection __unused *connection,
 	}
 	/* check if it's the daemon that asks for permission */
 	if (dbus_message_is_signal(message,
-			"org.moblin.coredump.permission", "ask")) {
+			"org.kerneloops.submit.permission", "ask")) {
 
 		if (user_preference > 0) {
 			/* the user / config file says "always" */
@@ -381,7 +390,7 @@ static DBusHandlerResult dbus_gotmessage(DBusConnection __unused *connection,
 	}
 	/* check if it's the daemon that asks for permission */
 	if (dbus_message_is_signal(message,
-			"org.moblin.coredump.sent", "sent")) {
+			"org.kerneloops.submit.sent", "sent")) {
 
 		gtk_status_icon_set_visible(statusicon, TRUE);
 		sent_an_oops();
@@ -390,7 +399,7 @@ static DBusHandlerResult dbus_gotmessage(DBusConnection __unused *connection,
 	}
 	/* check if it's the daemon that asks for permission */
 	if (dbus_message_is_signal(message,
-			"org.moblin.coredump.url", "url")) {
+			"org.kerneloops.submit.url", "url")) {
 
 		got_an_url(message);
 		return DBUS_HANDLER_RESULT_HANDLED;
@@ -399,7 +408,7 @@ static DBusHandlerResult dbus_gotmessage(DBusConnection __unused *connection,
 }
 
 /*
- * read the ~/.corewatcher config file to see if the user pressed
+ * read the ~/.kerneloops config file to see if the user pressed
  * "always" or "never" before, and then honor that.
  */
 static void read_config(void)
@@ -408,7 +417,7 @@ static void read_config(void)
 	size_t dummy;
 	FILE *file;
 	char *line = NULL;
-	sprintf(filename, "%s/.corewatcher", getenv("HOME"));
+	sprintf(filename, "%s/.kerneloops", getenv("HOME"));
 	file = fopen(filename, "r");
 	if (!file)
 		return;
@@ -434,8 +443,8 @@ int main(int argc, char *argv[])
 
 	/* Initialize translation stuff */
 	setlocale(LC_ALL, "");
-	bindtextdomain("corewatcher", "/usr/share/locale");
-	textdomain("corewatcher");
+	bindtextdomain("kerneloops", "/usr/share/locale");
+	textdomain("kerneloops");
 
 
 	gtk_init(&argc, &argv);
@@ -460,19 +469,19 @@ int main(int argc, char *argv[])
 	/* hook dbus into the main loop */
 	dbus_connection_setup_with_g_main(bus, NULL);
 
-	statusicon = gtk_status_icon_new_from_file("/usr/share/corewatcher/icon.png");
+	statusicon = gtk_status_icon_new_from_file("/usr/share/kerneloops/icon.png");
 
-	gtk_status_icon_set_tooltip(statusicon, _("corewatcher client"));
+	gtk_status_icon_set_tooltip(statusicon, _("kerneloops client"));
 
-	notify_init("corewatcher-ui");
+	notify_init("kerneloops-ui");
 
 	/* by default, don't show our icon */
 	gtk_status_icon_set_visible(statusicon, FALSE);
 
 	/* set the dbus message to listen for */
-	dbus_bus_add_match(bus, "type='signal',interface='org.moblin.coredump.permission'", &error);
-	dbus_bus_add_match(bus, "type='signal',interface='org.moblin.coredump.sent'", &error);
-	dbus_bus_add_match(bus, "type='signal',interface='org.moblin.coredump.url'", &error);
+	dbus_bus_add_match(bus, "type='signal',interface='org.kerneloops.submit.permission'", &error);
+	dbus_bus_add_match(bus, "type='signal',interface='org.kerneloops.submit.sent'", &error);
+	dbus_bus_add_match(bus, "type='signal',interface='org.kerneloops.submit.url'", &error);
 	dbus_connection_add_filter(bus, dbus_gotmessage, NULL, NULL);
 
 	/*
