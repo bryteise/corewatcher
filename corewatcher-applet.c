@@ -1,6 +1,6 @@
 /*
  *
- * Kerneloops UI applet.
+ * Corewatcher UI applet.
  *
  * Copyright (C) 2007 Intel Corporation
  *
@@ -184,7 +184,7 @@ static void detail_action(NotifyNotification __unused *notify,
 	detail_data[statb.st_size] = '\0';
 
 	dialog = gtk_dialog_new();
-	gtk_window_set_title(GTK_WINDOW(dialog), _("Kernel failure details"));
+	gtk_window_set_title(GTK_WINDOW(dialog), _("Application failure details"));
 	gtk_widget_set_size_request(dialog, 600, 400);
 	scrollwindow = gtk_scrolled_window_new(NULL, NULL);
 	gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW (scrollwindow),
@@ -279,7 +279,7 @@ char url_to_oops[4095];
  */
 static void sent_an_oops(void)
 {
-	char *summary = _("Kernel bug diagnostic information sent");
+	char *summary = _("Application bug diagnostic information sent");
 	char *message = NULL;
 	char *message_1 =
 		_("Diagnostic information from your application has been "

@@ -53,7 +53,7 @@ char *extract_core(char *corefile)
 	if (asprintf(&c1, "Program: %s\n", appfile) < 0)
 		return NULL;
 
-	if (asprintf(&command, "LANG=C gdb --batch -f %s %s -x gdb.command 2> /dev/null", appfile, corefile) < 0)
+	if (asprintf(&command, "LANG=C gdb --batch -f %s %s -x /var/lib/corewatcher/gdb.command 2> /dev/null", appfile, corefile) < 0)
 		return NULL;
 		
 	file = popen(command, "r");

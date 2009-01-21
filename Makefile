@@ -48,10 +48,12 @@ dist: clean
 
 install-system: corewatcher.8.gz
 	-mkdir -p $(DESTDIR)$(MANDIR)
+	-mkdir -p $(DESTDIR)/var/lib/corewatcher
 	-mkdir -p $(DESTDIR)/etc/dbus-1/system.d/
 	install -m 0644 corewatcher.conf $(DESTDIR)/etc/corewatcher.conf
 	install -m 0644 corewatcher.dbus $(DESTDIR)/etc/dbus-1/system.d/
 	install -m 0644 corewatcher.8.gz $(DESTDIR)$(MANDIR)/
+	install -m 0644 gdb.command  $(DESTDIR)/var/lib/corewatcher/
 	@(cd po/ && env LOCALESDIR=$(LOCALESDIR) DESTDIR=$(DESTDIR) $(MAKE) install)
 
 install-corewatcher: corewatcher
