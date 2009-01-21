@@ -54,7 +54,7 @@ install-system: corewatcher.8.gz
 	install -m 0644 corewatcher.conf $(DESTDIR)/etc/corewatcher.conf
 	install -m 0644 corewatcher.dbus $(DESTDIR)/etc/dbus-1/system.d/
 	install -m 0644 corewatcher.8.gz $(DESTDIR)$(MANDIR)/
-	install -m 0644 corewatcher.init $(DESTDIR)/etc/init.d
+	install -m 0744 corewatcher.init $(DESTDIR)/etc/init.d/corewatcher
 	install -m 0644 gdb.command  $(DESTDIR)/var/lib/corewatcher/
 	@(cd po/ && env LOCALESDIR=$(LOCALESDIR) DESTDIR=$(DESTDIR) $(MAKE) install)
 
