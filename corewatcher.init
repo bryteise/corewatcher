@@ -35,7 +35,7 @@ lockfile=/var/lock/subsys/$prog
 start() {
  	echo -n $"Starting $prog:"
  	mkdir /var/cores &> /dev/null
- 	echo /var/cores > /proc/sys/kernel/core_pattern
+ 	echo /var/cores/core > /proc/sys/kernel/core_pattern
 	daemon $prog  $OPTS
 	retval=$?
 	echo
