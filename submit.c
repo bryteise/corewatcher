@@ -134,7 +134,7 @@ void write_detail_file(void)
 	oops = queued_backtraces;
 	while (oops) {
 		count++; /* Users are not programmers, start at 1 */
-		fprintf(tmpf, "Kernel failure message %d:\n", count);
+		fprintf(tmpf, "Application failure message %d:\n", count);
 		fprintf(tmpf, "%s", oops->text);
 		fprintf(tmpf, "\n\n");
 		oops = oops->next;
