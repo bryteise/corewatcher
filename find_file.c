@@ -25,6 +25,8 @@ char *find_executable(char *fragment)
 	char *path, *c1, *c2;
  	static char filename[PATH_MAX*2];
 
+	printf("Looking for %s\n", fragment);
+
 	path = strdup(getenv("PATH"));
 
 	if (strlen(fragment) < 3)
@@ -39,11 +41,14 @@ char *find_executable(char *fragment)
 	c1 = path;
 	while (c1 && strlen(c1)>0) {
 		c2 = strchr(c1, ':');
-		if (c2) c2=0;
+		if (c2) *c2=0;
 		sprintf(filename, "%s/%s", c1, fragment);
-		if (!access(filename, X_OK))
+		if (!access(filename, X_OK)) {
+			printf("Found %s\n", filename);
 			return filename;
+		}
 		c1 = c2;
+		if (c2) c1++;
 	}
 	return NULL;
 }
@@ -57,21 +62,31 @@ char *find_coredump(char *corefile)
 	static char core[PATH_MAX];
 
 	memset(core, 0, sizeof(core));
-	sprintf(command, "file %s", corefile);
+	sprintf(command, "eu-readelf -n %s", corefile);
 	file = popen(command, "r");
 	if (!file)
 		return NULL;
-	if (getline(&line, &size, file) < 0)
-		goto out;;
-	c = strstr(line,"from '");
+
+	while (!feof(file)) {
+		if (getline(&line, &size, file) < 0)
+			goto out;;
+		if (strstr(line, "fname:"))
+			break;
+	}
+	c = strstr(line,"psargs: ");
 	if (!c)
 		goto out;
-	c += 6;
-	c2 = strchr(c, '\'');
-	if (!c2)
-		goto out;
-	*c2 = 0;
+	c += 8;
+	c2 = strchr(c, ' ');
+	if (c2)
+		*c2 = 0;
+	c2 = strchr(c, '\n');
+	if (c2)
+		*c2 = 0;
 	strcpy(core, c);
+	c2 = strchr(core, ' ');
+	if (c2) *c2 = 0;
+	printf("Causing app: %s\n", core);
 out:
 	pclose(file);
 	free(line);
