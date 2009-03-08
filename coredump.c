@@ -36,6 +36,7 @@
 
 #include "corewatcher.h"
 
+int do_unlink = 0;
 
 #define MAX(A,B) ((A) > (B) ? (A) : (B))
 
@@ -103,6 +104,7 @@ char *extract_core(char *corefile)
 void process_corefile(char *filename)
 {
 	char *ptr;
+	char newfile[8192];
 	ptr = extract_core(filename);
 
 	if (!ptr)
@@ -110,7 +112,11 @@ void process_corefile(char *filename)
 
 	queue_backtrace(ptr);
 	printf("-%s-\n", ptr);
-	unlink(filename);
+	sprintf(newfile,"%s.processed", filename);
+	if (do_unlink)
+		unlink(filename);
+	else
+		rename(filename, newfile);
 
 	free(ptr);
 }
@@ -132,6 +138,8 @@ int scan_dmesg(void __unused *unused)
 		if (!entry)
 			break;
 		if (entry->d_name[0] == '.')
+			continue;
+		if (strstr(entry->d_name, "processed"))
 			continue;
 		sprintf(path, "/var/cores/%s", entry->d_name);
 		printf("Looking at %s\n", path);

@@ -37,7 +37,7 @@
 int opted_in;
 int allow_distro_to_pass_on;
 char *submit_url;
-
+extern int do_unlink;
 
 void read_config_file(char *filename)
 {
@@ -71,6 +71,12 @@ void read_config_file(char *filename)
 			c += 14;
 			if (strstr(c, "yes"))
 				allow_distro_to_pass_on = 1;
+		}
+		c = strstr(line, "unlink ");
+		if (c) {
+			c += 14;
+			if (strstr(c, "yes"))
+				do_unlink = 1;
 		}
 		c = strstr(line, "submit-url ");
 		if (c) {
