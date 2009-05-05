@@ -74,7 +74,6 @@ void read_config_file(char *filename)
 		}
 		c = strstr(line, "unlink ");
 		if (c) {
-			c += 14;
 			if (strstr(c, "yes"))
 				do_unlink = 1;
 		}
