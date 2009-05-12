@@ -185,11 +185,12 @@ int main(int argc, char**argv)
 		dbus_connection_add_filter(bus, got_message, NULL, NULL);
 	}
 
+	if (!testmode)
+		sleep(20);
+
 	/* we scan dmesg before /var/log/messages; dmesg is a more accurate source normally */
 	scan_dmesg(NULL);
 	/* during boot... don't go too fast and slow the system down */
-	if (!testmode)
-		sleep(20);
 
 	if (testmode) {
 		g_main_loop_unref(loop);
