@@ -189,7 +189,7 @@ int main(int argc, char**argv)
 	scan_dmesg(NULL);
 	/* during boot... don't go too fast and slow the system down */
 	if (!testmode)
-		sleep(10);
+		sleep(20);
 
 	if (testmode) {
 		g_main_loop_unref(loop);
