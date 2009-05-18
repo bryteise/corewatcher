@@ -232,7 +232,7 @@ static void got_a_message(void)
 	char *summary = _("Your system had an application failure");
 	char *message =
 	       _("There is diagnostic information available for this failure."
-		" Do you want to submit this information to the <a href=\"http://www.corewatcher.org/\">www.corewatcher.org</a>"
+		" Do you want to submit this information to the www.corewatcher.org"
 		" website for use by the Moblin developers?\n");
 
 	NotifyActionCallback callback = notify_action;
@@ -254,17 +254,11 @@ static void got_a_message(void)
 	notify_notification_add_action(notify, "default", "action",
 						callback, "default", NULL);
 
-	notify_notification_add_action(notify, "always", _("Always"),
-						callback, "always", NULL);
-	notify_notification_add_action(notify, "yes", _("Yes"),
+	notify_notification_add_action(notify, "Send", _("Send"),
 						callback, "yes", NULL);
-	notify_notification_add_action(notify, "no", _("No"),
-						callback, "no", NULL);
-	notify_notification_add_action(notify, "never", _("Never"),
-						callback, "never", NULL);
 	if (detail_file_name) {
 		notify_notification_add_action(notify,
-			"details", _("Show Details"),
+			"details", _("Details"),
 			detail_action, "details", NULL);
 	}
 
