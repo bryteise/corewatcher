@@ -240,8 +240,7 @@ static void got_a_message(void)
 	/* if there's a notification active already, close it first */
 	close_notification();
 
-	notify = notify_notification_new(summary, message,
-				"/usr/share/corewatcher/icon.png", NULL);
+	notify = notify_notification_new(summary, message, NULL, NULL);
 
 	notify_notification_set_timeout(notify, 0);
 	notify_notification_set_urgency(notify, NOTIFY_URGENCY_CRITICAL);
@@ -300,8 +299,7 @@ static void sent_an_oops(void)
 
 	url_to_oops[0] = 0;
 
-	notify = notify_notification_new(summary, message,
-				"/usr/share/corewatcher/icon.png", NULL);
+	notify = notify_notification_new(summary, message, NULL, NULL);
 
 	notify_notification_set_timeout(notify, 5000);
 	notify_notification_set_urgency(notify, NOTIFY_URGENCY_LOW);
