@@ -386,9 +386,6 @@ static DBusHandlerResult dbus_gotmessage(DBusConnection __unused *connection,
 	if (dbus_message_is_signal(message,
 			"org.corewatcher.submit.sent", "sent")) {
 
-		gtk_status_icon_set_visible(statusicon, TRUE);
-		sent_an_oops();
-		gtk_status_icon_set_visible(statusicon, FALSE);
 		return DBUS_HANDLER_RESULT_HANDLED;
 	}
 	/* check if it's the daemon that asks for permission */
