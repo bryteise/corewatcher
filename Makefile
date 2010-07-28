@@ -49,8 +49,10 @@ dist: clean
 install-system: corewatcher.8.gz
 	-mkdir -p $(DESTDIR)$(MANDIR)
 	-mkdir -p $(DESTDIR)/var/lib/corewatcher
+	-mkdir -p $(DESTDIR)/etc/security/limits.d/
 	-mkdir -p $(DESTDIR)/etc/init.d
 	-mkdir -p $(DESTDIR)/etc/dbus-1/system.d/
+	install -m 0644 95-core.conf $(DESTDIR)/etc/security/limits.d/95-core.conf
 	install -m 0644 corewatcher.conf $(DESTDIR)/etc/corewatcher.conf
 	install -m 0644 corewatcher.dbus $(DESTDIR)/etc/dbus-1/system.d/
 	install -m 0644 corewatcher.8.gz $(DESTDIR)$(MANDIR)/
@@ -81,7 +83,6 @@ uptrans:
 	xgettext -C -s -k_ -o po/corewatcher.pot *.c *.h
 	@(cd po/ && env LG=$(LG) $(MAKE) $@)
 
-	
 
 tests: corewatcher
 	desktop-file-validate *.desktop
