@@ -3,4 +3,6 @@ DEADJOE
 extract_oops
 core.*
 corewatcher
+corewatcher-applet
 *.o
+*.gz
