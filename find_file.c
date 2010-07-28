@@ -23,7 +23,7 @@
 char *find_executable(char *fragment)
 {
 	char *path, *c1, *c2;
- 	static char filename[PATH_MAX*2];
+	static char filename[PATH_MAX*2];
 
 	printf("Looking for %s\n", fragment);
 
@@ -56,7 +56,7 @@ char *find_executable(char *fragment)
 char *find_coredump(char *corefile)
 {
 	char *line, *c, *c2;
-	size_t size = 0; 
+	size_t size = 0;
 	FILE *file = NULL;
 	char command[PATH_MAX*2];
 	static char core[PATH_MAX];
@@ -92,4 +92,3 @@ out:
 	free(line);
 	return core;
 }
-

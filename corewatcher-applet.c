@@ -5,7 +5,7 @@
  * Copyright (C) 2007 Intel Corporation
  *
  * Authors:
- * 	Arjan van de Ven <arjan@linux.intel.com>
+ *	Arjan van de Ven <arjan@linux.intel.com>
  *
  *
  * Based on the very useful example from bluez-gnome; many thanks:

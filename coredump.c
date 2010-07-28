@@ -20,7 +20,7 @@
  * Boston, MA 02110-1301 USA
  *
  * Authors:
- * 	Arjan van de Ven <arjan@linux.intel.com>
+ *	Arjan van de Ven <arjan@linux.intel.com>
  */
 
 #include <unistd.h>
@@ -56,7 +56,7 @@ char *extract_core(char *corefile)
 
 	if (asprintf(&command, "LANG=C gdb --batch -f %s %s -x /var/lib/corewatcher/gdb.command 2> /dev/null", appfile, corefile) < 0)
 		return NULL;
-		
+
 	file = popen(command, "r");
 	while (!feof(file)) {
 		size_t size = 0;
@@ -64,7 +64,7 @@ char *extract_core(char *corefile)
 
 		c2 = c1;
 		line = NULL;
-		ret = getline(&line, &size, file);	
+		ret = getline(&line, &size, file);
 		if (!size)
 			break;
 		if (ret < 0)
@@ -141,15 +141,16 @@ int scan_dmesg(void __unused *unused)
 			continue;
 		if (strstr(entry->d_name, "processed"))
 			continue;
+		if (strncmp(entry->d_name, "core.", 5))
+			continue;
 		sprintf(path, "/tmp/%s", entry->d_name);
 		printf("Looking at %s\n", path);
 		process_corefile(path);
-	} while (entry);	
-	
+	} while (entry);
+
 	if (opted_in >= 2)
 		submit_queue();
 	else if (opted_in >= 1)
 		ask_permission();
 	return 1;
 }
-
