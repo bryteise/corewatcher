@@ -44,10 +44,14 @@ int do_unlink = 0;
 char *extract_core(char *corefile)
 {
 	char *command = NULL, *c1 = NULL, *c2 = NULL, *line, *c3;
+	char *coredump;
 	char *appfile;
 	FILE *file;
 
-	appfile = find_executable(find_coredump(corefile));
+	coredump = find_coredump(corefile);
+	if (!coredump)
+		return NULL;
+	appfile = find_executable(coredump);
 	if (!appfile)
 		return NULL;
 
