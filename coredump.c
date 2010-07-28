@@ -128,7 +128,7 @@ int scan_dmesg(void __unused *unused)
 	struct dirent *entry;
 	char path[PATH_MAX*2];
 
-	dir = opendir("/var/cores/");
+	dir = opendir("/tmp/");
 	if (!dir)
 		return 1;
 
@@ -141,7 +141,7 @@ int scan_dmesg(void __unused *unused)
 			continue;
 		if (strstr(entry->d_name, "processed"))
 			continue;
-		sprintf(path, "/var/cores/%s", entry->d_name);
+		sprintf(path, "/tmp/%s", entry->d_name);
 		printf("Looking at %s\n", path);
 		process_corefile(path);
 	} while (entry);	

@@ -5,6 +5,6 @@ Icon=stock_alarm
 Exec=corewatcher-applet
 Terminal=false
 Type=Application
-Categories=Application;System;Utility
+Categories=Application;System;Utility;
 X-GNOME-Autostart-enabled=true
 X-MeeGo-Priority=Low

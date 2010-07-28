@@ -1,4 +1,4 @@
-
+VERSION = 0.7
 #
 # to build this package, you need to have the following components installed:
 # dbus-glib-devel libnotify-devel gtk2-devel curl-devel
@@ -92,4 +92,8 @@ tests: corewatcher
 valgrind: corewatcher tests
 	valgrind -q --leak-check=full ./corewatcher --debug test/*.txt
 
+dist:
+	git tag v$(VERSION)
+	git archive --format=tar --prefix="corewatcher-$(VERSION)/" v$(VERSION) | \
+		gzip > corewatcher-$(VERSION).tar.gz
 
