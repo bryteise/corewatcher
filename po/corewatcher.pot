@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2010-07-25 19:35-0400\n"
+"POT-Creation-Date: 2010-07-28 10:59-0700\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -16,7 +16,7 @@ msgstr ""
 "Content-Type: text/plain; charset=CHARSET\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: corewatcher-applet.c:312
+#: corewatcher-applet.c:314
 msgid "Always"
 msgstr ""
 
@@ -32,7 +32,7 @@ msgstr ""
 msgid "Cancel"
 msgstr ""
 
-#: corewatcher-applet.c:452
+#: corewatcher-applet.c:454
 #, c-format
 msgid "Connecting to system bus failed: %s\n"
 msgstr ""
@@ -42,25 +42,25 @@ msgid "Details"
 msgstr ""
 
 #: corewatcher-applet.c:278
-#, c-format
 msgid ""
-"Diagnostic information from your application has been sent to <a href=\"%s\">"
-"%s</a> for the MeeGo developers to work on. \n"
-"Thank you for contributing to improve the quality of the MeeGo "
+"Diagnostic information from your application has been sent to <a href="
+"\"crashdb.meego.com\">crashdb.meego.com</a> for the MeeGo developers to work "
+"on. \n"
+" Thank you for contributing to improve the quality of the MeeGo "
 "distribution.\n"
 msgstr ""
 
-#: corewatcher-applet.c:284
-#, c-format
+#: corewatcher-applet.c:285
 msgid ""
-"Diagnostic information from your application has been sent to <a href=\"%s\">"
-"%s</a> for the MeeGo developers to work on. \n"
-"Thank you for contributing to improve the quality of the MeeGo "
+"Diagnostic information from your application has been sent to <a href="
+"\"crashdb.meego.com\">crashdb.meego.com</a> for the MeeGo developers to work "
+"on. \n"
+" Thank you for contributing to improve the quality of the MeeGo "
 "distribution.\n"
-"You can view your submitted oops <a href=\"%s\">here</a>\n"
+" You can view your submitted oops <a href=\"crashdb.meego.com\">here</a>\n"
 msgstr ""
 
-#: corewatcher-applet.c:314
+#: corewatcher-applet.c:316
 msgid "Never again"
 msgstr ""
 
@@ -69,16 +69,16 @@ msgid "Send"
 msgstr ""
 
 #: corewatcher-applet.c:234
-#, c-format
 msgid ""
 "There is diagnostic information available for this failure. Do you want to "
-"submit this information to the %s website for use by the MeeGo developers?\n"
+"submit this information to the crashdb.meego.com website for use by the "
+"MeeGo developers?\n"
 msgstr ""
 
 #: corewatcher-applet.c:232
 msgid "Your system had an application failure"
 msgstr ""
 
-#: corewatcher-applet.c:463
+#: corewatcher-applet.c:465
 msgid "corewatcher client"
 msgstr ""
