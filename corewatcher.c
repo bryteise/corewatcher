@@ -153,7 +153,7 @@ int main(int argc, char**argv)
 	}
 
 	if (!opted_in && !testmode) {
-		fprintf(stderr, " [Inactive by user preference]");
+		fprintf(stderr, " [Inactive by user preference]\n");
 		return EXIT_SUCCESS;
 	}
 
