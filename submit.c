@@ -178,7 +178,7 @@ static void print_queue(void)
 static void write_logfile(int count)
 {
 	openlog("corewatcher", 0, LOG_KERN);
-	syslog(LOG_WARNING, "Submitted %i coredump signatures to www.corewatcher.org", count);
+	syslog(LOG_WARNING, "Submitted %i coredump signatures to %s", count, submit_url);
 	closelog();
 }
 

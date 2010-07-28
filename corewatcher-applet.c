@@ -232,8 +232,8 @@ static void got_a_message(void)
 	char *summary = _("Your system had an application failure");
 	char *message =
 	       _("There is diagnostic information available for this failure."
-		" Do you want to submit this information to the www.corewatcher.org"
-		" website for use by the Moblin developers?\n");
+		" Do you want to submit this information to the "
+                "crashdb.meego.com website for use by the MeeGo developers?\n");
 
 	NotifyActionCallback callback = notify_action;
 
@@ -276,16 +276,18 @@ static void sent_an_oops(void)
 	char *message = NULL;
 	char *message_1 =
 		_("Diagnostic information from your application has been "
-		  "sent to <a href=\"http://www.corewatcher.org\">www.corewatcher.org</a> "
-		  "for the Moblin developers to work on. \n"
-		  "Thank you for contributing to improve the quality of the Moblin distribution.\n");
+		  "sent to <a href=\"crashdb.meego.com\">crashdb.meego.com</a> "
+		  "for the MeeGo developers to work on. \n Thank you for "
+                  "contributing to improve the quality of the MeeGo "
+                  "distribution.\n");
 
 	char *message_2 =
 		_("Diagnostic information from your application has been "
-		  "sent to <a href=\"http://www.corewatcher.org\">www.corewatcher.org</a> "
-		  "for the Moblin developers to work on. \n"
-		  "Thank you for contributing to improve the quality of the Moblin distribution.\n"
-		"You can view your submitted oops <a href=\"%s\">here</a>\n");
+		  "sent to <a href=\"crashdb.meego.com\">crashdb.meego.com</a> "
+		  "for the MeeGo developers to work on. \n Thank you for "
+                  "contributing to improve the quality of the MeeGo "
+                  "distribution.\n You can view your submitted oops "
+                  "<a href=\"crashdb.meego.com\">here</a>\n");
 	NotifyActionCallback callback = notify_action;
 
 	close_notification();

@@ -4,7 +4,7 @@
 #
 # chkconfig:   345 90 88
 # description: A tool that collects and submits crash \
-# signatures to the corewatcher.org website for use by the Moblin \
+# signatures to the corewatcher.org website for use by the MeeGo \
 # developers.
 # processname: corewatcher
 # config:      /etc/corewatcher.conf
@@ -18,7 +18,7 @@
 # Short-Description: Tool to automatically collect and submit crash signatures
 # Description: A tool that collects and submits k crash
 #   signatures to the corewatcher.org website for use by the
-#   Moblin developers.
+#   MeeGo developers.
 ### END INIT INFO
 
 # Source function library.
