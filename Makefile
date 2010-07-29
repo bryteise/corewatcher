@@ -43,8 +43,6 @@ clean:
 	rm -f *~ *.o *.ko DEADJOE corewatcher corewatcher-applet *.out */*~ corewatcher.8.gz
 	@(cd po/ && $(MAKE) $@)
 
-dist: clean
-	rm -rf .git .gitignore push.sh .*~  */*~ test/*dbg
 
 install-system: corewatcher.8.gz
 	-mkdir -p $(DESTDIR)$(MANDIR)

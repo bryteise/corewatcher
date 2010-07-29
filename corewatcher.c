@@ -28,6 +28,7 @@
 #include <string.h>
 #include <sched.h>
 #include <syslog.h>
+#include <getopt.h>
 #include <sys/prctl.h>
 #include <asm/unistd.h>
 
@@ -50,10 +51,27 @@
 
 #include "corewatcher.h"
 
+
+static struct option opts[] = {
+	{ "nodaemon", 0, NULL, 'n' },
+	{ "debug",    0, NULL, 'd' },
+	{ "help",     0, NULL, 'h' },
+	{ 0, 0, NULL, 0 }
+};
+
+
 static DBusConnection *bus;
 
 int pinged;
 int testmode;
+
+static void usage(const char *name)
+{
+	printf("Usage: %s [OPTIONS...]\n", name);
+	printf("  -n, --nodaemon  Do not daemonize, run in foreground\n");
+	printf("  -d, --debug     Enable debug mode\n");
+	printf("  -h, --help      Display this help message\n");
+}
 
 static DBusHandlerResult got_message(
 		DBusConnection __unused *conn,
@@ -143,13 +161,30 @@ int main(int argc, char**argv)
 
 	read_config_file("/etc/corewatcher.conf");
 
-	if (argc > 1 && strstr(argv[1], "--nodaemon"))
-		godaemon = 0;
-	if (argc > 1 && strstr(argv[1], "--debug")) {
-		printf("Starting corewatcher in debug mode\n");
-		godaemon = 0;
-		testmode = 1;
-		opted_in = 2;
+	while (1) {
+		int c;
+		int i;
+
+		c = getopt_long(argc, argv, "dnh", opts, &i);
+		if (c == -1)
+			break;
+
+		switch(c) {
+		case 'd':
+			godaemon = 0;
+			break;
+		case 'n':
+			printf("Starting corewatcher in debug mode\n");
+			godaemon = 0;
+			testmode = 1;
+			opted_in = 2;
+			break;
+		case 'h':
+			usage(argv[0]);
+			return EXIT_SUCCESS;
+		default:
+			break;
+		}
 	}
 
 	if (!opted_in && !testmode) {
