@@ -88,5 +88,5 @@ void read_config_file(char *filename)
 	}
 	fclose(file);
 	if (!submit_url)
-		submit_url = strdup("http://submit.corewatcher.org/submitoops.php");
+		submit_url = strdup("http://crashdb.meego.com/submitbug.php");
 }
