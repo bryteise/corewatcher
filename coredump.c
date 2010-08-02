@@ -115,7 +115,7 @@ void process_corefile(char *filename)
 		return;
 
 	queue_backtrace(ptr);
-	printf("-%s-\n", ptr);
+	fprintf(stderr, "---[start of coredump]---\n%s\n---[end of coredump]---\n", ptr);
 	sprintf(newfile,"%s.processed", filename);
 	if (do_unlink)
 		unlink(filename);
@@ -136,7 +136,7 @@ int scan_dmesg(void __unused *unused)
 	if (!dir)
 		return 1;
 
-	printf("Scanning..\n");
+	fprintf(stderr, "+ scanning..\n");
 	do {
 		entry = readdir(dir);
 		if (!entry)
@@ -148,7 +148,7 @@ int scan_dmesg(void __unused *unused)
 		if (strncmp(entry->d_name, "core.", 5))
 			continue;
 		sprintf(path, "/tmp/%s", entry->d_name);
-		printf("Looking at %s\n", path);
+		fprintf(stderr, "+ Looking at %s\n", path);
 		process_corefile(path);
 	} while (entry);
 

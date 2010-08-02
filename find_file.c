@@ -25,7 +25,7 @@ char *find_executable(char *fragment)
 	char *path, *c1, *c2;
 	static char filename[PATH_MAX*2];
 
-	printf("Looking for %s\n", fragment);
+	fprintf(stderr, "+ Looking for %s\n", fragment);
 
 	path = strdup(getenv("PATH"));
 
@@ -86,7 +86,7 @@ char *find_coredump(char *corefile)
 	strcpy(core, c);
 	c2 = strchr(core, ' ');
 	if (c2) *c2 = 0;
-	printf("Causing app: %s\n", core);
+	fprintf(stderr,"+ causing app: %s\n", core);
 out:
 	pclose(file);
 	free(line);

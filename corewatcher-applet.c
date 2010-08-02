@@ -79,7 +79,7 @@ static void write_config(char *permission)
 	sprintf(filename, "%s/.corewatcher", getenv("HOME"));
 	file = fopen(filename, "w");
 	if (!file) {
-		printf("error is %s \n", strerror(errno));
+		fprintf(stderr, "+ error is %s \n", strerror(errno));
 		return;
 	}
 	fprintf(file, "allow-submit = %s\n", permission);

@@ -49,6 +49,8 @@ void read_config_file(char *filename)
 		return;
 	while (!feof(file)) {
 		char *c;
+		char *n;
+
 		line = NULL;
 		if (getline(&line, &dummy, file) <= 0) {
 			free(line);
@@ -58,6 +60,11 @@ void read_config_file(char *filename)
 			free(line);
 			continue;
 		}
+
+		/* remove trailing\n */
+		n = strchr(line, '\n');
+		if (n) *n = 0;
+
 		c = strstr(line, "allow-submit ");
 		if (c) {
 			c += 13;
@@ -89,4 +96,5 @@ void read_config_file(char *filename)
 	fclose(file);
 	if (!submit_url)
 		submit_url = strdup("http://crashdb.meego.com/submitbug.php");
+	fprintf(stderr, "+ submit url=\"%s\"\n", submit_url);
 }

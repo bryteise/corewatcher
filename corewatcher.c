@@ -56,6 +56,7 @@ static struct option opts[] = {
 	{ "nodaemon", 0, NULL, 'n' },
 	{ "debug",    0, NULL, 'd' },
 	{ "always",   0, NULL, 'a' },
+	{ "test",     0, NULL, 't' },
 	{ "help",     0, NULL, 'h' },
 	{ 0, 0, NULL, 0 }
 };
@@ -68,11 +69,12 @@ int testmode;
 
 static void usage(const char *name)
 {
-	printf("Usage: %s [OPTIONS...]\n", name);
-	printf("  -n, --nodaemon  Do not daemonize, run in foreground\n");
-	printf("  -d, --debug     Enable debug mode\n");
-	printf("  -a, --always    Always send core dumps\n");
-	printf("  -h, --help      Display this help message\n");
+	fprintf(stderr, "Usage: %s [OPTIONS...]\n", name);
+	fprintf(stderr, "  -n, --nodaemon  Do not daemonize, run in foreground\n");
+	fprintf(stderr, "  -d, --debug     Enable debug mode\n");
+	fprintf(stderr, "  -a, --always    Always send core dumps\n");
+	fprintf(stderr, "  -t, --test      Do not send anything\n");
+	fprintf(stderr, "  -h, --help      Display this help message\n");
 }
 
 static DBusHandlerResult got_message(
@@ -153,6 +155,7 @@ int main(int argc, char**argv)
 	GMainLoop *loop;
 	DBusError error;
 	int godaemon = 1;
+	int debug = 0;
 
 /*
  * Signal the kernel that we're not timing critical
@@ -173,17 +176,19 @@ int main(int argc, char**argv)
 
 		switch(c) {
 		case 'n':
-			printf("Not running as daemon\n");
+			fprintf(stderr, "+ Not running as daemon\n");
 			godaemon = 0;
 			break;
 		case 'd':
-			printf("Starting corewatcher in debug mode\n");
-			godaemon = 0;
-			testmode = 1;
+			fprintf(stderr, "+ Starting corewatcher in debug mode\n");
+			debug = 1;
 			break;
 		case 'a':
-			printf("Sending All report\n");
+			fprintf(stderr, "+ Sending All reports\n");
 			opted_in = 2;
+			break;
+		case 't':
+			fprintf(stderr, "+ Test mode enabled: not sending anything\n");
 			break;
 		case 'h':
 			usage(argv[0]);
@@ -194,7 +199,7 @@ int main(int argc, char**argv)
 	}
 
 	if (!opted_in && !testmode) {
-		fprintf(stderr, " [Inactive by user preference]\n");
+		fprintf(stderr, "+ Inactive by user preference\n");
 		return EXIT_SUCCESS;
 	}
 
@@ -211,7 +216,7 @@ int main(int argc, char**argv)
 */
 
 	if (godaemon && daemon(0, 0)) {
-		printf("corewatcher failed to daemonize.. exiting \n");
+		fprintf(stderr, "corewatcher failed to daemonize.. exiting \n");
 		return EXIT_FAILURE;
 	}
 	sched_yield();
@@ -226,7 +231,7 @@ int main(int argc, char**argv)
 		dbus_connection_add_filter(bus, got_message, NULL, NULL);
 	}
 
-	if (!testmode)
+	if (!debug)
 		sleep(20);
 
 	/* we scan dmesg before /var/log/messages; dmesg is a more accurate source normally */
@@ -238,7 +243,7 @@ int main(int argc, char**argv)
 		dbus_bus_remove_match(bus, "type='signal',interface='org.corewatcher.submit.ping'", &error);
 		dbus_bus_remove_match(bus, "type='signal',interface='org.corewatcher.submit.permission'", &error);
 		free(submit_url);
-		printf("Exiting from testmode\n");
+		fprintf(stderr, "+ Exiting from testmode\n");
 		return EXIT_SUCCESS;
 	}
 

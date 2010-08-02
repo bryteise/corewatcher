@@ -165,7 +165,7 @@ static void print_queue(void)
 	while (oops) {
 		struct oops *next;
 
-		printf("Submit text is:\n---[start of oops]---\n%s\n---[end of oops]---\n", oops->text);
+		fprintf(stderr, "+ Submit text is:\n---[start of oops]---\n%s\n---[end of oops]---\n", oops->text);
 		next = oops->next;
 		free(oops->text);
 		free(oops);
@@ -206,6 +206,7 @@ void submit_queue(void)
 	int result;
 	struct oops *oops;
 	struct oops *queue;
+	CURL *handle;
 	int count = 0;
 
 	memset(result_url, 0, 4096);
@@ -215,20 +216,18 @@ void submit_queue(void)
 		return;
 	}
 
+	handle = curl_easy_init();
+	curl_easy_setopt(handle, CURLOPT_URL, submit_url);
+
 	queue = queued_backtraces;
 	queued_backtraces = NULL;
 	barrier();
+
 	oops = queue;
 	while (oops) {
-		CURL *handle;
 		struct curl_httppost *post = NULL;
 		struct curl_httppost *last = NULL;
 		struct oops *next;
-
-		handle = curl_easy_init();
-
-		printf("DEBUG SUBMIT URL is %s \n", submit_url);
-		curl_easy_setopt(handle, CURLOPT_URL, submit_url);
 
 		/* set up the POST data */
 		curl_formadd(&post, &last,
@@ -246,13 +245,14 @@ void submit_queue(void)
 		result = curl_easy_perform(handle);
 
 		curl_formfree(post);
-		curl_easy_cleanup(handle);
 		next = oops->next;
 		free(oops->text);
 		free(oops);
 		oops = next;
 		count++;
 	}
+
+	curl_easy_cleanup(handle);
 
 	if (count && !testmode)
 		write_logfile(count);
