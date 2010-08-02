@@ -55,6 +55,7 @@
 static struct option opts[] = {
 	{ "nodaemon", 0, NULL, 'n' },
 	{ "debug",    0, NULL, 'd' },
+	{ "always",   0, NULL, 'a' },
 	{ "help",     0, NULL, 'h' },
 	{ 0, 0, NULL, 0 }
 };
@@ -70,6 +71,7 @@ static void usage(const char *name)
 	printf("Usage: %s [OPTIONS...]\n", name);
 	printf("  -n, --nodaemon  Do not daemonize, run in foreground\n");
 	printf("  -d, --debug     Enable debug mode\n");
+	printf("  -a, --always    Always send core dumps\n");
 	printf("  -h, --help      Display this help message\n");
 }
 
@@ -165,18 +167,22 @@ int main(int argc, char**argv)
 		int c;
 		int i;
 
-		c = getopt_long(argc, argv, "dnh", opts, &i);
+		c = getopt_long(argc, argv, "adnh", opts, &i);
 		if (c == -1)
 			break;
 
 		switch(c) {
-		case 'd':
+		case 'n':
+			printf("Not running as daemon\n");
 			godaemon = 0;
 			break;
-		case 'n':
+		case 'd':
 			printf("Starting corewatcher in debug mode\n");
 			godaemon = 0;
 			testmode = 1;
+			break;
+		case 'a':
+			printf("Sending All report\n");
 			opted_in = 2;
 			break;
 		case 'h':
