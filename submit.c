@@ -231,7 +231,7 @@ void submit_queue(void)
 
 		/* set up the POST data */
 		curl_formadd(&post, &last,
-			CURLFORM_COPYNAME, "backtracedata",
+			CURLFORM_COPYNAME, "data",
 			CURLFORM_COPYCONTENTS, oops->text, CURLFORM_END);
 
 		if (allow_distro_to_pass_on) {
