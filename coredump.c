@@ -40,6 +40,145 @@ int do_unlink = 0;
 
 #define MAX(A,B) ((A) > (B) ? (A) : (B))
 
+static char *get_release(void) {
+	FILE *file;
+	char *line = NULL;
+	size_t dummy;
+
+	file = fopen("/etc/issue", "r");
+	if (!file) {
+		line = strdup("Unknown");
+		return line;
+	}
+
+	while (!feof(file)) {
+		line = NULL;
+		if (getline(&line, &dummy, file) <= 0)
+			break;
+
+		if (strstr(line, "release") != NULL)
+			return line;
+	}
+
+	fclose(file);
+
+	line = strdup("Unknown");
+
+	return line;
+}
+
+char *get_package(char *appfile) {
+	char *command = NULL, *line = NULL;
+	FILE *file;
+	int ret = 0;
+	size_t size = 0;
+
+	if (asprintf(&command, "rpm -q --whatprovides %s", appfile) < 0) {
+		line = strdup("Unknown");
+		return line;
+	}
+
+	file = popen(command, "r");
+
+	ret = getline(&line, &size, file);
+	if ((!size) || (ret < 0)) {
+		line = strdup("Unknown");
+		return line;
+	}
+
+	pclose(file);
+	return line;
+}
+
+void get_component_arch(char *package, char **component, char **arch) {
+	char *tmp_str = NULL;
+	size_t size = 0;
+
+	tmp_str = rindex(package, '.');
+	if (tmp_str == NULL) {
+		*arch = strdup("Unknown");
+		*component = strdup("Unknown");
+		return;
+	}
+
+	/* Step over the . in the package name and set NULL terminator */
+	tmp_str = tmp_str + 1;
+	size = strlen(tmp_str);
+	tmp_str[size - 1] = '\0';
+
+	*arch = tmp_str;
+
+	/* Subtract out the . before the arch and the NULL terminator */
+	size = strlen(package) - size - 2;
+
+	*component = malloc(size + 1);
+	memset(*component, 0, size + 1);
+	memcpy(*component, package, size);
+
+	return;
+}
+
+static char *get_kernel(void) {
+	char *command = NULL, *line = NULL;
+	FILE *file;
+	int ret = 0;
+	size_t size = 0;
+
+	if (asprintf(&command, "uname -r") < 0) {
+		line = strdup("Unknown");
+		return line;
+	}
+
+	file = popen(command, "r");
+
+	ret = getline(&line, &size, file);
+	if ((!size) || (ret < 0)) {
+		line = strdup("Unknown");
+		return line;
+	}
+
+	size = strlen(line);
+	line[size - 1] = '\0';
+
+	pclose(file);
+	return line;
+}
+
+char *build_core_header(char *appfile) {
+	int ret = 0;
+	char *result = NULL;
+	char *release = get_release();
+	char *package = get_package(appfile);
+	char *component = NULL;
+	char *arch = NULL;
+	char *kernel = get_kernel();
+
+	get_component_arch(package, &component, &arch);
+
+	ret = asprintf(&result,
+		       "executable: %s\n"
+		       "architecture: %s\n"
+		       "component: %s\n"
+		       "kernel: %s\n"
+		       "package: %s\n"
+		       "release: %s\n"
+		       "backtrace\n----\n",
+		       appfile,
+		       arch,
+		       component,
+		       kernel,
+		       package,
+		       release);
+
+	free(kernel);
+	free(package);
+	free(release);
+
+	if (ret < 0)
+		result = strdup("Unknown");
+
+	return result;
+}
 
 char *extract_core(char *corefile)
 {
@@ -55,8 +194,7 @@ char *extract_core(char *corefile)
 	if (!appfile)
 		return NULL;
 
-	if (asprintf(&c1, "Program: %s\n", appfile) < 0)
-		return NULL;
+	c1 = build_core_header(appfile);
 
 	if (asprintf(&command, "LANG=C gdb --batch -f %s %s -x /var/lib/corewatcher/gdb.command 2> /dev/null", appfile, corefile) < 0)
 		return NULL;
@@ -82,10 +220,10 @@ char *extract_core(char *corefile)
 			free(line);
 			continue;
 		}
-		if (strstr(line,              "Program terminated with signal")) {
+		if (strstr(line, "Program terminated with signal")) {
 			c3 = strchr(line, ',');
 			if (c3)
-				sprintf(line, "Type:%s", c3+1);
+				sprintf(line, "reason:%s", c3+1);
 		}
 
 		if (c1) {
