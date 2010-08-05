@@ -57,8 +57,15 @@ static char *get_release(void) {
 		if (getline(&line, &dummy, file) <= 0)
 			break;
 
-		if (strstr(line, "release") != NULL)
+		if (strstr(line, "release") != NULL) {
+			char *c;
+
+			c = strchr(line, '\n');
+			if (c) *c = 0;
+
+			fclose(file);
 			return line;
+		}
 	}
 
 	fclose(file);
@@ -70,6 +77,7 @@ static char *get_release(void) {
 
 char *get_package(char *appfile) {
 	char *command = NULL, *line = NULL;
+	char *c;
 	FILE *file;
 	int ret = 0;
 	size_t size = 0;
@@ -82,10 +90,11 @@ char *get_package(char *appfile) {
 	file = popen(command, "r");
 
 	ret = getline(&line, &size, file);
-	if ((!size) || (ret < 0)) {
+	if ((!size) || (ret < 0))
 		line = strdup("Unknown");
-		return line;
-	}
+
+	c = strchr(line, '\n');
+	if (c) *c = 0;
 
 	pclose(file);
 	return line;
@@ -168,7 +177,7 @@ char *build_core_header(char *appfile, char *corefile) {
 		       "release: %s\n"
 		       "time: %lu\n"
 		       "uid: %d\n"
-		       "backtrace\n----\n",
+		       "\nbacktrace\n-----\n",
 		       appfile,
 		       arch,
 		       component,
