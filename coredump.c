@@ -32,6 +32,7 @@
 #include <asm/unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/time.h>
 #include <dirent.h>
 
 #include "corewatcher.h"
@@ -144,7 +145,7 @@ static char *get_kernel(void) {
 	return line;
 }
 
-char *build_core_header(char *appfile) {
+char *build_core_header(char *appfile, char *corefile) {
 	int ret = 0;
 	char *result = NULL;
 	char *release = get_release();
@@ -152,23 +153,31 @@ char *build_core_header(char *appfile) {
 	char *component = NULL;
 	char *arch = NULL;
 	char *kernel = get_kernel();
+	struct timeval tv;
 
+	gettimeofday(&tv, NULL);
 	get_component_arch(package, &component, &arch);
 
 	ret = asprintf(&result,
 		       "executable: %s\n"
 		       "architecture: %s\n"
 		       "component: %s\n"
+		       "coredump: %s\n"
 		       "kernel: %s\n"
 		       "package: %s\n"
 		       "release: %s\n"
+		       "time: %lu\n"
+		       "uid: %d\n"
 		       "backtrace\n----\n",
 		       appfile,
 		       arch,
 		       component,
+		       corefile,
 		       kernel,
 		       package,
-		       release);
+		       release,
+		       tv.tv_sec,
+		       getuid());
 
 	free(kernel);
 	free(package);
@@ -194,7 +203,7 @@ char *extract_core(char *corefile)
 	if (!appfile)
 		return NULL;
 
-	c1 = build_core_header(appfile);
+	c1 = build_core_header(appfile, corefile);
 
 	if (asprintf(&command, "LANG=C gdb --batch -f %s %s -x /var/lib/corewatcher/gdb.command 2> /dev/null", appfile, corefile) < 0)
 		return NULL;
