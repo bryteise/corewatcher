@@ -59,9 +59,8 @@ char *find_coredump(char *corefile)
 	size_t size = 0;
 	FILE *file = NULL;
 	char command[PATH_MAX*2];
-	static char core[PATH_MAX];
+	char *app = NULL;
 
-	memset(core, 0, sizeof(core));
 	sprintf(command, "eu-readelf -n %s", corefile);
 	file = popen(command, "r");
 	if (!file)
@@ -69,26 +68,39 @@ char *find_coredump(char *corefile)
 
 	while (!feof(file)) {
 		if (getline(&line, &size, file) < 0)
-			goto out;;
-		if (strstr(line, "fname:"))
 			break;
+
+		c = strstr(line,"psargs: ");
+		if (c) {
+			c += 8;
+			c2 = strchr(c, ' ');
+			if (c2)
+				*c2 = 0;
+			c2 = strchr(c, '\n');
+			if (c2)
+				*c2 = 0;
+			app = strdup(c);
+
+			fprintf(stderr,"+ causing app: %s\n", app);
+		}
+
+		c = strstr(line, "EUID: ");
+		if (c) {
+			c += 6;
+			sscanf(c, "%i", &uid);
+			fprintf(stderr, "+ uid: %d\n", uid);
+		}
+
+		c = strstr(line, "cursig: ");
+		if (c) {
+			c += 8;
+			sscanf(c, "%i", &sig);
+			fprintf(stderr, "+ sig: %d\n", sig);
+		}
 	}
-	c = strstr(line,"psargs: ");
-	if (!c)
-		goto out;
-	c += 8;
-	c2 = strchr(c, ' ');
-	if (c2)
-		*c2 = 0;
-	c2 = strchr(c, '\n');
-	if (c2)
-		*c2 = 0;
-	strcpy(core, c);
-	c2 = strchr(core, ' ');
-	if (c2) *c2 = 0;
-	fprintf(stderr,"+ causing app: %s\n", core);
-out:
+
 	pclose(file);
 	free(line);
-	return core;
+
+	return app;
 }

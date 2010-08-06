@@ -34,10 +34,14 @@
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <dirent.h>
+#include <signal.h>
 
 #include "corewatcher.h"
 
 int do_unlink = 0;
+int uid;
+int sig;
+char *corefile;
 
 #define MAX(A,B) ((A) > (B) ? (A) : (B))
 
@@ -128,6 +132,21 @@ void get_component_arch(char *package, char **component, char **arch) {
 	return;
 }
 
+char *signame(int sig)
+{
+	switch(sig) {
+	case SIGINT:  return "INT";
+	case SIGILL:  return "ILL";
+	case SIGABRT: return "ABRT";
+	case SIGFPE:  return "FPE";
+	case SIGSEGV: return "SEGV";
+	case SIGPIPE: return "PIPE";
+	case SIGBUS:  return "BUS";
+	default:      return strsignal(sig);
+	}
+	return NULL;
+}
+
 static char *get_kernel(void) {
 	char *command = NULL, *line = NULL;
 	FILE *file;
@@ -168,25 +187,28 @@ char *build_core_header(char *appfile, char *corefile) {
 	get_component_arch(package, &component, &arch);
 
 	ret = asprintf(&result,
-		       "executable: %s\n"
+		       "analyzer: corewatcher-gdb\n"
 		       "architecture: %s\n"
 		       "component: %s\n"
 		       "coredump: %s\n"
+		       "executable: %s\n"
 		       "kernel: %s\n"
 		       "package: %s\n"
+		       "reason: Process %s was killed by signal %d (%s)\n"
 		       "release: %s\n"
 		       "time: %lu\n"
 		       "uid: %d\n"
 		       "\nbacktrace\n-----\n",
-		       appfile,
 		       arch,
 		       component,
 		       corefile,
+		       appfile,
 		       kernel,
 		       package,
+		       appfile, sig, signame(sig),
 		       release,
 		       tv.tv_sec,
-		       getuid());
+		       uid);
 
 	free(kernel);
 	free(package);
@@ -201,7 +223,7 @@ char *build_core_header(char *appfile, char *corefile) {
 char *extract_core(char *corefile)
 {
 	char *command = NULL, *c1 = NULL, *c2 = NULL, *line, *c3;
-	char *coredump;
+	char *coredump = NULL;
 	char *appfile;
 	FILE *file;
 
@@ -292,7 +314,7 @@ int scan_dmesg(void __unused *unused)
 	if (!dir)
 		return 1;
 
-	fprintf(stderr, "+ scanning..\n");
+	fprintf(stderr, "+ scanning...\n");
 	do {
 		entry = readdir(dir);
 		if (!entry)

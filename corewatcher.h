@@ -48,8 +48,10 @@ extern char *submit_url;
 extern int testmode;
 extern int pinged;
 
-extern char *find_executable(char *fragment);
-extern char *find_coredump(char *corefile);
+extern char *find_executable(char *);
+extern char *find_coredump(char *);
+extern int uid;
+extern int sig;
 
 
 #endif
