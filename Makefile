@@ -14,12 +14,12 @@ CFLAGS := -O2 -g -fstack-protector -D_FORTIFY_SOURCE=2 -Wall -W -Wstrict-prototy
 
 MY_CFLAGS := `pkg-config --cflags libnotify gtk+-2.0`
 #
-# pkg-config tends to make programs pull in a ton of libraries, not all 
+# pkg-config tends to make programs pull in a ton of libraries, not all
 # are needed. -Wl,--as-needed tells the linker to just drop unused ones,
 # and that makes the applet load faster and use less memory.
 #
 LDF_A := -Wl,--as-needed `pkg-config --libs libnotify gtk+-2.0`
-LDF_D := -Wl,--as-needed `pkg-config --libs glib-2.0 dbus-glib-1` `curl-config --libs` -Wl,"-z relro" -Wl,"-z now" 
+LDF_D := -Wl,--as-needed `pkg-config --libs glib-2.0 dbus-glib-1` `curl-config --libs` -Wl,"-z relro" -Wl,"-z now"
 
 all:	corewatcher corewatcher-applet corewatcher.8.gz
 
@@ -27,7 +27,7 @@ noui:	corewatcher corewatcher.8.gz
 
 .c.o:
 	$(CC) $(CFLAGS) $(MY_CFLAGS) -c -o $@ $<
- 
+
 
 corewatcher:	corewatcher.o submit.o coredump.o configfile.o find_file.o corewatcher.h
 	gcc corewatcher.o submit.o coredump.o configfile.o find_file.o $(LDF_D) -o corewatcher
@@ -94,4 +94,3 @@ dist:
 	git tag v$(VERSION)
 	git archive --format=tar --prefix="corewatcher-$(VERSION)/" v$(VERSION) | \
 		gzip > corewatcher-$(VERSION).tar.gz
-
