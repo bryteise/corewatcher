@@ -33,8 +33,8 @@ lockfile=/var/lock/subsys/$prog
 [ -e /etc/sysconfig/$prog ] && . /etc/sysconfig/$prog
 
 start() {
- 	echo -n $"Starting $prog:"
- 	echo /tmp/core > /proc/sys/kernel/core_pattern
+	echo -n $"Starting $prog:"
+	echo /tmp/core > /proc/sys/kernel/core_pattern
 	daemon $prog  $OPTS
 	retval=$?
 	echo
@@ -71,7 +71,7 @@ fdr_status() {
 
 case "$1" in
 	start|stop|restart|reload)
-  		$1
+		$1
 		;;
 	force-reload)
 		force_reload
@@ -86,4 +86,3 @@ case "$1" in
 		echo $"Usage: $0 {start|stop|status|restart|try-restart|reload|force-reload}"
 		exit 1
 esac
-
