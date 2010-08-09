@@ -135,13 +135,13 @@ void get_component_arch(char *package, char **component, char **arch) {
 char *signame(int sig)
 {
 	switch(sig) {
-	case SIGINT:  return "INT";
-	case SIGILL:  return "ILL";
-	case SIGABRT: return "ABRT";
-	case SIGFPE:  return "FPE";
-	case SIGSEGV: return "SEGV";
-	case SIGPIPE: return "PIPE";
-	case SIGBUS:  return "BUS";
+	case SIGINT:  return "SIGINT";
+	case SIGILL:  return "SIGILL";
+	case SIGABRT: return "SIGABRT";
+	case SIGFPE:  return "SIGFPE";
+	case SIGSEGV: return "SIGSEGV";
+	case SIGPIPE: return "SIGPIPE";
+	case SIGBUS:  return "SIGBUS";
 	default:      return strsignal(sig);
 	}
 	return NULL;
