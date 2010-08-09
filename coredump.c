@@ -42,6 +42,9 @@ int do_unlink = 0;
 int uid;
 int sig;
 char *corefile;
+char *package;
+char *component;
+char *arch;
 
 #define MAX(A,B) ((A) > (B) ? (A) : (B))
 
@@ -79,57 +82,52 @@ static char *get_release(void) {
 	return line;
 }
 
-char *get_package(char *appfile) {
+void get_package_info(char *appfile) {
 	char *command = NULL, *line = NULL;
 	char *c;
 	FILE *file;
 	int ret = 0;
 	size_t size = 0;
 
-	if (asprintf(&command, "rpm -q --whatprovides %s", appfile) < 0) {
+	if (asprintf(&command, "rpm -q --whatprovides %s --queryformat \"%%{NAME}-%%{VERSION}-%%{RELEASE}-%%{ARCH}\"", appfile) < 0) {
 		line = strdup("Unknown");
-		return line;
+	} else {
+		file = popen(command, "r");
+
+		ret = getline(&line, &size, file);
+		if ((!size) || (ret < 0))
+			line = strdup("Unknown");
+		c = strchr(line, '\n');
+		if (c) *c = 0;
+		pclose(file);
 	}
+	package = strdup(line);
 
-	file = popen(command, "r");
-
-	ret = getline(&line, &size, file);
-	if ((!size) || (ret < 0))
+	if (asprintf(&command, "rpm -q --whatprovides %s --queryformat \"%%{NAME}\"", appfile) < 0) {
 		line = strdup("Unknown");
-
-	c = strchr(line, '\n');
-	if (c) *c = 0;
-
-	pclose(file);
-	return line;
-}
-
-void get_component_arch(char *package, char **component, char **arch) {
-	char *tmp_str = NULL;
-	size_t size = 0;
-
-	tmp_str = rindex(package, '.');
-	if (tmp_str == NULL) {
-		*arch = strdup("Unknown");
-		*component = strdup("Unknown");
-		return;
+	} else {
+		file = popen(command, "r");
+		ret = getline(&line, &size, file);
+		if ((!size) || (ret < 0))
+			line = strdup("Unknown");
+		c = strchr(line, '\n');
+		if (c) *c = 0;
+		pclose(file);
 	}
+	component = strdup(line);
 
-	/* Step over the . in the package name and set NULL terminator */
-	tmp_str = tmp_str + 1;
-	size = strlen(tmp_str);
-	tmp_str[size - 1] = '\0';
-
-	*arch = tmp_str;
-
-	/* Subtract out the . before the arch and the NULL terminator */
-	size = strlen(package) - size - 2;
-
-	*component = malloc(size + 1);
-	memset(*component, 0, size + 1);
-	memcpy(*component, package, size);
-
-	return;
+	if (asprintf(&command, "rpm -q --whatprovides %s --queryformat \"%%{ARCH}\"", appfile) < 0) {
+		line = strdup("Unknown");
+	} else {
+		file = popen(command, "r");
+		ret = getline(&line, &size, file);
+		if ((!size) || (ret < 0))
+			line = strdup("Unknown");
+		c = strchr(line, '\n');
+		if (c) *c = 0;
+		pclose(file);
+	}
+	arch = strdup(line);
 }
 
 char *signame(int sig)
@@ -177,14 +175,11 @@ char *build_core_header(char *appfile, char *corefile) {
 	int ret = 0;
 	char *result = NULL;
 	char *release = get_release();
-	char *package = get_package(appfile);
-	char *component = NULL;
-	char *arch = NULL;
 	char *kernel = get_kernel();
 	struct timeval tv;
 
 	gettimeofday(&tv, NULL);
-	get_component_arch(package, &component, &arch);
+	get_package_info(appfile);
 
 	ret = asprintf(&result,
 		       "analyzer: corewatcher-gdb\n"
