@@ -217,7 +217,7 @@ char *build_core_header(char *appfile, char *corefile) {
 
 char *extract_core(char *corefile)
 {
-	char *command = NULL, *c1 = NULL, *c2 = NULL, *line, *c3;
+	char *command = NULL, *c1 = NULL, *c2 = NULL, *line;
 	char *coredump = NULL;
 	char *appfile;
 	FILE *file;
@@ -256,9 +256,8 @@ char *extract_core(char *corefile)
 			continue;
 		}
 		if (strstr(line, "Program terminated with signal")) {
-			c3 = strchr(line, ',');
-			if (c3)
-				sprintf(line, "reason:%s", c3+1);
+			free(line);
+			continue;
 		}
 
 		if (c1) {
