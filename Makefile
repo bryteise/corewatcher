@@ -3,12 +3,12 @@ VERSION = 0.9
 # to build this package, you need to have the following components installed:
 # dbus-glib-devel libnotify-devel gtk2-devel curl-devel
 #
-
-BINDIR=/usr/bin
-SBINDIR=/usr/sbin
-LOCALESDIR=/usr/share/locale
-MANDIR=/usr/share/man/man8
-CC?=gcc
+PREFIX    ?= /usr
+BINDIR     = $(PREFIX)/bin
+SBINDIR    = $(PREFIX)/sbin
+LOCALESDIR = $(PREFIX)/share/locale
+MANDIR     = $(PREFIX)/share/man/man8
+CC ?= gcc
 
 CFLAGS := -O2 -g -fstack-protector -D_FORTIFY_SOURCE=2 -Wall -W -Wstrict-prototypes -Wundef -fno-common -Werror-implicit-function-declaration -Wdeclaration-after-statement -Wformat -Wformat-security -Werror=format-security
 
@@ -51,7 +51,7 @@ install-system: corewatcher.8.gz
 	-mkdir -p $(DESTDIR)/etc/init.d
 	-mkdir -p $(DESTDIR)/etc/dbus-1/system.d/
 	install -m 0644 95-core.conf $(DESTDIR)/etc/security/limits.d/95-core.conf
-	install -m 0644 corewatcher.conf $(DESTDIR)/etc/corewatcher.conf
+	if [ ! -f $(DESTDIR)/etc/corewatcher.conf ] ; then install -m 0644 corewatcher.conf $(DESTDIR)/etc/corewatcher.conf ; fi
 	install -m 0644 corewatcher.dbus $(DESTDIR)/etc/dbus-1/system.d/
 	install -m 0644 corewatcher.8.gz $(DESTDIR)$(MANDIR)/
 	install -m 0744 corewatcher.init $(DESTDIR)/etc/init.d/corewatcher
