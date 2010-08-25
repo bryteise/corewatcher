@@ -255,7 +255,7 @@ char *extract_core(char *corefile)
 			free(line);
 			continue;
 		}
-		if (strstr(line, "Program terminated with signal")) {
+		if (strstr(line, "reason: ")) {
 			free(line);
 			continue;
 		}
