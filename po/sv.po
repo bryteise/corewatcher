@@ -1,0 +1,83 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: MeeGo Corewatcher\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2010-07-28 10:59-0700\n"
+"PO-Revision-Date: 2010-09-03 10:33-0800\n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=n!=1;\n"
+"X-Poedit-Language: Swedish\n"
+
+#: corewatcher-applet.c:314
+msgid "Always"
+msgstr "Alltid"
+
+#: corewatcher-applet.c:275
+msgid "Application bug diagnostic information sent"
+msgstr "Diagnostisk information om bug skickad"
+
+#: corewatcher-applet.c:187
+msgid "Application failure details"
+msgstr "Detaljer om felet"
+
+#: corewatcher-applet.c:207
+msgid "Cancel"
+msgstr "Avbryt"
+
+#: corewatcher-applet.c:454
+#, c-format
+msgid "Connecting to system bus failed: %s\n"
+msgstr "Det gick inte att ansluta till system bus: %s\n"
+
+#: corewatcher-applet.c:260
+msgid "Details"
+msgstr "Detaljer"
+
+#: corewatcher-applet.c:278
+msgid ""
+"Diagnostic information from your application has been sent to <a href=\"crashdb.meego.com\">crashdb.meego.com</a> for the MeeGo developers to work on. \n"
+" Thank you for contributing to improve the quality of the MeeGo distribution.\n"
+msgstr ""
+"Diagnostisk information från din applikation har skickats till <a href=\"crashdb.meego.com\">crashdb.meego.com</a> till utvecklarna att arbetas med. \n"
+" Tack för att du hjälper till att förbättra kvaliteten av MeeGo's distribution.\n"
+
+#: corewatcher-applet.c:285
+msgid ""
+"Diagnostic information from your application has been sent to <a href=\"crashdb.meego.com\">crashdb.meego.com</a> for the MeeGo developers to work on. \n"
+" Thank you for contributing to improve the quality of the MeeGo distribution.\n"
+" You can view your submitted oops <a href=\"crashdb.meego.com\">here</a>\n"
+msgstr ""
+"Diagnostisk information från din applikation har skickats till <a href=\"crashdb.meego.com\">crashdb.meego.com</a> till utvecklarna att arbetas med. \n"
+" Tack för att du hjälper till att förbättra kvaliteten av MeeGo's distribution.\n"
+" Din oops finns att se <a href=\"crashdb.meego.com\">här</a>\n"
+
+#: corewatcher-applet.c:316
+msgid "Never again"
+msgstr "Aldrig"
+
+#: corewatcher-applet.c:205
+#: corewatcher-applet.c:256
+msgid "Send"
+msgstr "Skicka"
+
+#: corewatcher-applet.c:234
+msgid "There is diagnostic information available for this failure. Do you want to submit this information to the crashdb.meego.com website for use by the MeeGo developers?\n"
+msgstr "Det finns diagnostisk information om felet. Vill du skicka denna information till hemsidan crashdb.meego.com att användas av MeeGo's utvecklare?\n"
+
+#: corewatcher-applet.c:232
+msgid "Your system had an application failure"
+msgstr "Ett applikationsfel har inträffat i ditt system."
+
+#: corewatcher-applet.c:465
+msgid "corewatcher client"
+msgstr "corewatcher klient"
+
