@@ -7,7 +7,7 @@ msgstr ""
 "Project-Id-Version: \n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2010-07-28 10:59-0700\n"
-"PO-Revision-Date: 2010-09-08 20:09+0530\n"
+"PO-Revision-Date: 2010-09-08 20:28+0530\n"
 "Last-Translator: A S Alam <aalam@users.sf.net>\n"
 "Language-Team: testLokalize <punjabi-users@lists.sf.net>\n"
 "MIME-Version: 1.0\n"
@@ -49,6 +49,11 @@ msgid ""
 " Thank you for contributing to improve the quality of the MeeGo "
 "distribution.\n"
 msgstr ""
+"ਤੁਹਾਡੇ ਐਪਲੀਕੇਸ਼ਨ ਲਈ ਜਾਂਚ ਜਾਣਕਾਰੀ ਨੂੰ <a href=\"crashdb.meego.com\">crashdb."
+"meego.com</a> "
+"ਉੱਤੇ ਭੇਜਿਆ ਗਿਆ ਹੈ ਤਾਂ ਡਿਵੈਲਪਰ ਕੰਮ ਕਰ ਸਕਣ।\n"
+" ਮੀਗੋ ਡਿਸਟਰੀਬਿਊਸ਼ਨ ਦੀ ਕੁਆਲਟੀ ਸੁਧਾਰਨ ਲਈ ਯੋਗਦਾਨ ਪਾਉਣ ਵਾਸਤੇ ਤੁਹਾਡਾ ਧੰਨਵਾਦ ਹੈ "
+"ਜੀ।\n"
 
 #: corewatcher-applet.c:285
 msgid ""
@@ -59,6 +64,13 @@ msgid ""
 "distribution.\n"
 " You can view your submitted oops <a href=\"crashdb.meego.com\">here</a>\n"
 msgstr ""
+"ਤੁਹਾਡੇ ਐਪਲੀਕੇਸ਼ਨ ਲਈ ਜਾਂਚ ਜਾਣਕਾਰੀ ਨੂੰ <a href=\"crashdb.meego.com\">crashdb."
+"meego.com</a> "
+"ਉੱਤੇ ਭੇਜਿਆ ਗਿਆ ਹੈ ਤਾਂ ਡਿਵੈਲਪਰ ਕੰਮ ਕਰ ਸਕਣ।\n"
+" ਮੀਗੋ ਡਿਸਟਰੀਬਿਊਸ਼ਨ ਦੀ ਕੁਆਲਟੀ ਸੁਧਾਰਨ ਲਈ ਯੋਗਦਾਨ ਪਾਉਣ ਵਾਸਤੇ ਤੁਹਾਡਾ ਧੰਨਵਾਦ ਹੈ "
+"ਜੀ।\n"
+" ਤੁਸੀਂ ਆਪਣੇ ਭੇਜੇ oops ਨੂੰ <a href=\"crashdb.meego.com\">ਇੱਥੇ</a> ਵੇਖ ਸਕਦੇ "
+"ਹੋ।\n"
 
 #: corewatcher-applet.c:316
 msgid "Never again"
@@ -74,6 +86,9 @@ msgid ""
 "submit this information to the crashdb.meego.com website for use by the "
 "MeeGo developers?\n"
 msgstr ""
+"ਇਸ ਅਸਫ਼ਲਤਾ ਲਈ ਜਾਂਚ ਜਾਣਕਾਰੀ ਉਪਲੱਬਧ ਹੈ। ਕੀ ਤੁਸੀਂ ਇਹ ਜਾਣਕਾਰੀ ਨੂੰ crashdb.meego."
+"com "
+"ਵੈੱਬਸਾਈਟ ਉੱਤੇ ਮੀਗੋ ਡਿਵੈਲਪਰ ਦੀ ਵਰਤੋਂ ਲਈ ਭੇਜਣਾ ਚਾਹੁੰਦੇ ਹੋ?\n"
 
 #: corewatcher-applet.c:232
 msgid "Your system had an application failure"
@@ -82,4 +97,5 @@ msgstr "ਤੁਹਾਡੇ ਸਿਸਟਮ ਉੱਤੇ ਐਪਲੀਕੇਸ਼
 #: corewatcher-applet.c:465
 msgid "corewatcher client"
 msgstr "corewatcher ਕਲਾਇਟ"
+
 
