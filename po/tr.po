@@ -1,0 +1,81 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2010-07-28 10:59-0700\n"
+"PO-Revision-Date: 2010-09-29 01:47+0200\n"
+"Last-Translator: Aranel Surion <aranel@aranelsurion.org>\n"
+"Language-Team: tr <aranel@aranelsurion.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: corewatcher-applet.c:314
+msgid "Always"
+msgstr "Her zaman"
+
+#: corewatcher-applet.c:275
+msgid "Application bug diagnostic information sent"
+msgstr "Uygulama hatası tanılama bilgileri gönderildi"
+
+#: corewatcher-applet.c:187
+msgid "Application failure details"
+msgstr "Uygulama hata detayları"
+
+#: corewatcher-applet.c:207
+msgid "Cancel"
+msgstr "İptal"
+
+#: corewatcher-applet.c:454
+#, c-format
+msgid "Connecting to system bus failed: %s\n"
+msgstr "Connecting to system bus failed: %s\n"
+
+#: corewatcher-applet.c:260
+msgid "Details"
+msgstr "Detaylar"
+
+#: corewatcher-applet.c:278
+msgid ""
+"Diagnostic information from your application has been sent to <a href=\"crashdb.meego.com\">crashdb.meego.com</a> for the MeeGo developers to work on. \n"
+" Thank you for contributing to improve the quality of the MeeGo distribution.\n"
+msgstr ""
+"Uygulamanıza ait tanılama bilgileri MeeGo geliştiricilerinin çalışması için <a href=\"crashdb.meego.com\">crashdb.meego.com</a> adresine gönderildi. \n"
+" MeeGo dağıtımının kalitesini arttırmaya yönelik desteğiniz için teşekkürler.\n"
+
+#: corewatcher-applet.c:285
+msgid ""
+"Diagnostic information from your application has been sent to <a href=\"crashdb.meego.com\">crashdb.meego.com</a> for the MeeGo developers to work on. \n"
+" Thank you for contributing to improve the quality of the MeeGo distribution.\n"
+" You can view your submitted oops <a href=\"crashdb.meego.com\">here</a>\n"
+msgstr ""
+"Uygulamanıza ait tanılama bilgileri MeeGo geliştiricilerinin çalışması için <a href=\"crashdb.meego.com\">crashdb.meego.com</a> adresine gönderildi. \n"
+" Thank you for contributing to improve the quality of the MeeGo distribution.\n"
+" Gönderdiğiniz raporu görüntülemek için <a href=\"crashdb.meego.com\">tıklayın</a>\n"
+
+#: corewatcher-applet.c:316
+msgid "Never again"
+msgstr "Bir daha asla"
+
+#: corewatcher-applet.c:205
+#: corewatcher-applet.c:256
+msgid "Send"
+msgstr "Gönder"
+
+#: corewatcher-applet.c:234
+msgid "There is diagnostic information available for this failure. Do you want to submit this information to the crashdb.meego.com website for use by the MeeGo developers?\n"
+msgstr "Bu hata için tanılama bilgileri mevcut. Bu bilgilerin crashdb.meego.com adresine MeeGo geliştiricilerinin kullanımı için gönderilmesini ister misiniz?\n"
+
+#: corewatcher-applet.c:232
+msgid "Your system had an application failure"
+msgstr "Sisteminiz bir uygulama hatası yaşadı"
+
+#: corewatcher-applet.c:465
+msgid "corewatcher client"
+msgstr "corewatcher istemcisi"
+
