@@ -1,4 +1,4 @@
-VERSION = 0.12
+VERSION = 0.13
 #
 # to build this package, you need to have the following components installed:
 # dbus-glib-devel libnotify-devel gtk2-devel curl-devel
@@ -72,7 +72,7 @@ install-applet: corewatcher-applet
 	install -m 0644 icon.png $(DESTDIR)/usr/share/corewatcher/icon.png
 
 install: install-system install-corewatcher install-applet
-	@(cd po/ && $(MAKE) $@)
+	@(cd po/ && $(MAKE) DESTDIR="$(DESTDIR)" LOCALESDIR="$(LOCALESDIR)" $@)
 
 install-noui: install-system install-corewatcher
 
