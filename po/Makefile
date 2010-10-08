@@ -11,10 +11,12 @@ SRC=$(wildcard *.po)
 OBJ= $(SRC:.po=.mo)
 INST= $(SRC:.po=.inst)
 
+all: translations
+
 translations: $(OBJ)
 	
 %.mo: %.po
-	-@msgfmt -o $@  $<
+	msgfmt -o $@  $<
 
 clean:
 	rm -f *.mo *~
@@ -24,8 +26,8 @@ clean:
 install: $(OBJ) $(INST)
 
 %.inst: %.mo
-	mkdir -p $(DESTDIR)$(LOCALESDIR)/$*/LC_MESSAGES/
-	-cp -f $< $(DESTDIR)$(LOCALESDIR)/$*/LC_MESSAGES/corewatcher.mo
+	-mkdir -p $(DESTDIR)$(LOCALESDIR)/$*/LC_MESSAGES/
+	cp -f $< $(DESTDIR)$(LOCALESDIR)/$*/LC_MESSAGES/corewatcher.mo
 
 uptrans: $(LG).po
 

@@ -22,6 +22,7 @@ LDF_A := -Wl,--as-needed `pkg-config --libs libnotify gtk+-2.0`
 LDF_D := -Wl,--as-needed `pkg-config --libs glib-2.0 dbus-glib-1` `curl-config --libs` -Wl,"-z relro" -Wl,"-z now"
 
 all:	corewatcher corewatcher-applet corewatcher.8.gz
+	@(cd po/ && $(MAKE) $@)
 
 noui:	corewatcher corewatcher.8.gz
 
@@ -71,6 +72,7 @@ install-applet: corewatcher-applet
 	install -m 0644 icon.png $(DESTDIR)/usr/share/corewatcher/icon.png
 
 install: install-system install-corewatcher install-applet
+	@(cd po/ && $(MAKE) $@)
 
 install-noui: install-system install-corewatcher
 
