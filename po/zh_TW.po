@@ -1,22 +1,20 @@
-# SOME DESCRIPTIVE TITLE.
+# Traditional chinese translations for corewatcher package.
 # Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
-# This file is distributed under the same license as the PACKAGE package.
-# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+# This file is distributed under the same license as the corewatcher package.
+# Wei-Lun Chao <chaoweilun@gmail.com>, 2010.
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: MeeGo Corewatcher\n"
+"Project-Id-Version: corewatcher\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2010-07-28 10:59-0700\n"
-"PO-Revision-Date: 2010-09-03 10:33-0800\n"
-"Last-Translator: \n"
-"Language-Team: \n"
+"PO-Revision-Date: 2010-10-27 23:33+0800\n"
+"Last-Translator: Wei-Lun Chao <chaoweilun@gmail.com>\n"
+"Language-Team: Chinese (Taiwan)\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n!=1;\n"
-"X-Poedit-Language: Chinese\n"
-"X-Poedit-Country: TAIWAN\n"
 
 #: corewatcher-applet.c:314
 msgid "Always"
@@ -49,7 +47,7 @@ msgid ""
 " Thank you for contributing to improve the quality of the MeeGo distribution.\n"
 msgstr ""
 "您的應用程式診斷資訊已傳遞至 <a href=\"crashdb.meego.com\">crashdb.meego.com</a> 好讓 MeeGo 開發人員去解決。\n"
-"非常感謝您參與改善 MeeGo 發佈品質。\n"
+"非常感謝您參與改善 MeeGo 發布品質。\n"
 
 #: corewatcher-applet.c:285
 msgid ""
@@ -58,7 +56,7 @@ msgid ""
 " You can view your submitted oops <a href=\"crashdb.meego.com\">here</a>\n"
 msgstr ""
 "您的應用程式診斷資訊已傳遞至 <a href=\"crashdb.meego.com\">crashdb.meego.com</a> 好讓 MeeGo 開發人員去解決。\n"
-"非常感謝您參與改善 MeeGo 發佈品質。\n"
+"非常感謝您參與改善 MeeGo 發布品質。\n"
 "您可以在<a href=\"crashdb.meego.com\">這裡</a>查看您提交的案件。\n"
 
 #: corewatcher-applet.c:316
