@@ -36,6 +36,8 @@
 
 #include "corewatcher.h"
 
+extern int do_unlink;
+
 
 /*
  * we keep track of 16 checksums of the last submitted oopses; this allows us to
@@ -146,7 +148,8 @@ void write_detail_file(void)
 void unlink_detail_file(void)
 {
 	if (detail_filename) {
-		unlink(detail_filename);
+		if (do_unlink)
+			unlink(detail_filename);
 		free(detail_filename);
 	}
 }
