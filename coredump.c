@@ -283,8 +283,10 @@ void process_corefile(char *filename)
 	char newfile[8192];
 	ptr = extract_core(filename);
 
-	if (!ptr)
+	if (!ptr) {
+		unlink(filename);
 		return;
+	}
 
 	queue_backtrace(ptr);
 	fprintf(stderr, "---[start of coredump]---\n%s\n---[end of coredump]---\n", ptr);

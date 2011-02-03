@@ -1,4 +1,4 @@
-VERSION = 0.13
+VERSION = 0.14
 #
 # to build this package, you need to have the following components installed:
 # dbus-glib-devel libnotify-devel gtk2-devel curl-devel
