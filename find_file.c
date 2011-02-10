@@ -22,6 +22,12 @@
 
 char *find_executable(char *fragment)
 {
+	/*
+	 * Added path_filename to avoid writing over
+	 * filename if this function is called twice.
+	 * (When meego-tablet-wrapper is used)
+	 */
+	char path_filename[PATH_MAX*2];
 	char *path, *c1, *c2;
 	static char filename[PATH_MAX*2];
 
@@ -42,9 +48,10 @@ char *find_executable(char *fragment)
 	while (c1 && strlen(c1)>0) {
 		c2 = strchr(c1, ':');
 		if (c2) *c2=0;
-		sprintf(filename, "%s/%s", c1, fragment);
-		if (!access(filename, X_OK)) {
-			printf("Found %s\n", filename);
+		sprintf(path_filename, "%s/%s", c1, fragment);
+		if (!access(path_filename, X_OK)) {
+			printf("Found %s\n", path_filename);
+			strcpy(filename, path_filename);
 			return filename;
 		}
 		c1 = c2;
