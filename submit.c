@@ -178,10 +178,10 @@ static void print_queue(void)
 
 }
 
-static void write_logfile(int count)
+static void write_logfile(int count, char *wsubmit_url)
 {
 	openlog("corewatcher", 0, LOG_KERN);
-	syslog(LOG_WARNING, "Submitted %i coredump signatures to %s", count, submit_url);
+	syslog(LOG_WARNING, "Submitted %i coredump signatures to %s", count, wsubmit_url);
 	closelog();
 }
 
@@ -201,10 +201,11 @@ size_t writefunction( void *ptr, size_t size, size_t nmemb, void __attribute((un
 		if (c2) *c2 = 0;
 		strncpy(result_url, c1, 4095);
 	}
+	free(c);
 	return size * nmemb;
 }
 
-void submit_queue(void)
+void submit_queue_with_url(char *wsubmit_url)
 {
 	int result;
 	struct oops *oops;
@@ -212,15 +213,8 @@ void submit_queue(void)
 	CURL *handle;
 	int count = 0;
 
-	memset(result_url, 0, 4096);
-
-	if (testmode) {
-		print_queue();
-		return;
-	}
-
 	handle = curl_easy_init();
-	curl_easy_setopt(handle, CURLOPT_URL, submit_url);
+	curl_easy_setopt(handle, CURLOPT_URL, wsubmit_url);
 
 	queue = queued_backtraces;
 	queued_backtraces = NULL;
@@ -258,7 +252,7 @@ void submit_queue(void)
 	curl_easy_cleanup(handle);
 
 	if (count && !testmode)
-		write_logfile(count);
+		write_logfile(count, wsubmit_url);
 
 	if (count)
 		dbus_say_thanks(result_url);
@@ -270,6 +264,33 @@ void submit_queue(void)
 		unlink_detail_file();
 		exit(EXIT_SUCCESS);
 	}
+}
+
+void submit_queue(void)
+{
+	int i;
+	CURL *handle;
+
+	memset(result_url, 0, 4096);
+
+	if (testmode) {
+		print_queue();
+		return;
+	}
+
+	handle = curl_easy_init();
+	curl_easy_setopt(handle, CURLOPT_NOBODY, 1);
+	curl_easy_setopt(handle, CURLOPT_TIMEOUT, 5);
+
+	for (i = 0; i < url_count; i++) {
+		curl_easy_setopt(handle, CURLOPT_URL, submit_url[i]);
+		if (!curl_easy_perform(handle)) {
+			submit_queue_with_url(submit_url[i]);
+			break;
+		}
+	}
+
+	curl_easy_cleanup(handle);
 }
 
 void clear_queue(void)
@@ -287,7 +308,7 @@ void clear_queue(void)
 		free(oops);
 		oops = next;
 	}
-	write_logfile(0);
+	write_logfile(0, "Unknown");
 }
 
 void ask_permission(void)

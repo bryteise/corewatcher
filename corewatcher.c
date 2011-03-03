@@ -173,6 +173,7 @@ int main(int argc, char**argv)
 	DBusError error;
 	int godaemon = 1;
 	int debug = 0;
+	int j = 0;
 
 /*
  * Signal the kernel that we're not timing critical
@@ -264,7 +265,8 @@ int main(int argc, char**argv)
 		g_main_loop_unref(loop);
 		dbus_bus_remove_match(bus, "type='signal',interface='org.corewatcher.submit.ping'", &error);
 		dbus_bus_remove_match(bus, "type='signal',interface='org.corewatcher.submit.permission'", &error);
-		free(submit_url);
+		for (j = 0; j < url_count; j++)
+			free(submit_url[j]);
 		fprintf(stderr, "+ Exiting from testmode\n");
 		return EXIT_SUCCESS;
 	}
@@ -278,7 +280,8 @@ int main(int argc, char**argv)
 	dbus_bus_remove_match(bus, "type='signal',interface='org.corewatcher.submit.permission'", &error);
 
 	g_main_loop_unref(loop);
-	free(submit_url);
+	for (j = 0; j < url_count; j++)
+		free(submit_url[j]);
 
 	return EXIT_SUCCESS;
 }

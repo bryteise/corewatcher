@@ -36,7 +36,8 @@
  */
 int opted_in;
 int allow_distro_to_pass_on;
-char *submit_url;
+char *submit_url[MAX_URLS];
+int url_count = 0;
 extern int do_unlink;
 
 void read_config_file(char *filename)
@@ -85,15 +86,15 @@ void read_config_file(char *filename)
 				do_unlink = 1;
 		}
 		c = strstr(line, "submit-url ");
-		if (c) {
+		if (c && url_count <= MAX_URLS) {
 			c += 11;
 			c = strstr(c, "http:");
 			if (c)
-				submit_url = strdup(c);
+				submit_url[url_count++] = strdup(c);
 		}
 		free(line);
 	}
 	fclose(file);
-	if (!submit_url)
-		submit_url = strdup("http://crashdb.meego.com/submitbug.php");
+	if (!url_count)
+		submit_url[url_count++] = strdup("http://crashdb.meego.com/submitbug.php");
 }

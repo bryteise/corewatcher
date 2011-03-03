@@ -30,6 +30,8 @@
 #define barrier() __asm__ __volatile__("": : :"memory")
 #define __unused  __attribute__ ((__unused__))
 
+#define MAX_URLS 9
+
 extern void queue_backtrace(char *oops);
 extern void submit_queue(void);
 extern void clear_queue(void);
@@ -43,7 +45,8 @@ extern void dbus_say_thanks(char *url);
 
 extern int opted_in;
 extern int allow_distro_to_pass_on;
-extern char *submit_url;
+extern char *submit_url[MAX_URLS];
+extern int url_count;
 
 extern int testmode;
 extern int pinged;

@@ -33,9 +33,7 @@ char *find_executable(char *fragment)
 
 	fprintf(stderr, "+ Looking for %s\n", fragment);
 
-	path = strdup(getenv("PATH"));
-
-	if (strlen(fragment) < 3)
+	if (fragment == NULL || strlen(fragment) < 3)
 		return NULL;
 
 	/* Deal with absolute paths first */
@@ -43,6 +41,8 @@ char *find_executable(char *fragment)
 		strcpy(filename, fragment);
 		return filename;
 	}
+
+	path = strdup(getenv("PATH"));
 
 	c1 = path;
 	while (c1 && strlen(c1)>0) {
@@ -52,11 +52,13 @@ char *find_executable(char *fragment)
 		if (!access(path_filename, X_OK)) {
 			printf("Found %s\n", path_filename);
 			strcpy(filename, path_filename);
+			free(path);
 			return filename;
 		}
 		c1 = c2;
 		if (c2) c1++;
 	}
+	free(path);
 	return NULL;
 }
 
