@@ -279,13 +279,14 @@ void wrapper_scan(char *command)
 			break;
 		}
 	}
-	free(line);
+	if (line)
+		free(line);
 	pclose(file);
 }
 
 char *extract_core(char *corefile)
 {
-	char *command = NULL, *c1 = NULL, *c2 = NULL, *line;
+	char *command = NULL, *c1 = NULL, *c2 = NULL, *line = NULL;
 	char *coredump = NULL;
 	char *appfile;
 	FILE *file;
@@ -337,7 +338,8 @@ char *extract_core(char *corefile)
 			asprintf(&c1, "%s", line);
 		}
 	}
-	free(line);
+	if (line)
+		free(line);
 	pclose(file);
 	free(command);
 	return c1;
