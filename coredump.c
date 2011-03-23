@@ -48,6 +48,43 @@ char *arch;
 
 #define MAX(A,B) ((A) > (B) ? (A) : (B))
 
+char *get_build(void) {
+	FILE *file;
+	char *line = NULL;
+	size_t dummy;
+
+	file = fopen(build_release, "r");
+	if (!file) {
+		line = strdup("Unknown");
+		return line;
+	}
+	while (!feof(file)) {
+		line = NULL;
+		if (getline(&line, &dummy, file) <= 0)
+			break;
+		if (strstr(line, "BUILD") != NULL) {
+			char *c;
+
+			c = strchr(line, '\n');
+			if (c) *c = 0;
+
+			c = strstr(line, "BUILD");
+			c += 7;
+			c = strdup(c);
+
+			free(line);
+			fclose(file);
+			return c;
+		}
+	}
+
+	fclose(file);
+
+	line = strdup("Unknown");
+
+	return line;
+}
+
 static char *get_release(void) {
 	FILE *file;
 	char *line = NULL;
@@ -209,6 +246,7 @@ static char *get_kernel(void) {
 char *build_core_header(char *appfile, char *corefile) {
 	int ret = 0;
 	char *result = NULL;
+	char *build = get_build();
 	char *release = get_release();
 	char *kernel = get_kernel();
 	struct timeval tv;
@@ -226,6 +264,7 @@ char *build_core_header(char *appfile, char *corefile) {
 		       "package: %s\n"
 		       "reason: Process %s was killed by signal %d (%s)\n"
 		       "release: %s\n"
+		       "build: %s\n"
 		       "time: %lu\n"
 		       "uid: %d\n"
 		       "\nbacktrace\n-----\n",
@@ -237,12 +276,14 @@ char *build_core_header(char *appfile, char *corefile) {
 		       package,
 		       appfile, sig, signame(sig),
 		       release,
+		       build,
 		       tv.tv_sec,
 		       uid);
 
 	free(kernel);
 	free(package);
 	free(release);
+	free(build);
 	free(component);
 	free(arch);
 

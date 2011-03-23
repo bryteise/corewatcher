@@ -47,6 +47,7 @@ extern int opted_in;
 extern int allow_distro_to_pass_on;
 extern char *submit_url[MAX_URLS];
 extern int url_count;
+extern char *build_release;
 
 extern int testmode;
 extern int pinged;

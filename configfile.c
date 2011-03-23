@@ -37,6 +37,7 @@
 int opted_in;
 int allow_distro_to_pass_on;
 char *submit_url[MAX_URLS];
+char *build_release;
 int url_count = 0;
 extern int do_unlink;
 
@@ -92,9 +93,18 @@ void read_config_file(char *filename)
 			if (c)
 				submit_url[url_count++] = strdup(c);
 		}
+		c = strstr(line, "release-info");
+		if (c) {
+			c += 11;
+			c = strstr(c, "/");
+			if (c)
+				build_release = strdup(c);
+		}
 		free(line);
 	}
 	fclose(file);
+	if (!build_release)
+		build_release = strdup("/etc/meego-release");
 	if (!url_count)
 		submit_url[url_count++] = strdup("http://crashdb.meego.com/submitbug.php");
 }
