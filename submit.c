@@ -52,14 +52,6 @@ extern int do_unlink;
 static unsigned int checksums[MAX_CHECKSUMS];
 static int submitted;
 
-struct oops;
-
-struct oops {
-	struct oops *next;
-	char *text;
-	unsigned int checksum;
-};
-
 /* we queue up oopses, and then submit in a batch.
  * This is useful to be able to cancel all submissions, in case
  * we later find our marker indicating we submitted everything so far already
@@ -86,7 +78,7 @@ static unsigned int checksum(char *ptr)
 	return temp;
 }
 
-void queue_backtrace(char *oops)
+void queue_backtrace(struct oops *oops)
 {
 	int i;
 	unsigned int sum;
@@ -95,7 +87,7 @@ void queue_backtrace(char *oops)
 	if (submitted >= MAX_CHECKSUMS-1)
 		return;
 	/* first, check if we haven't already submitted the oops */
-	sum = checksum(oops);
+	sum = checksum(oops->text);
 	for (i = 0; i < submitted; i++) {
 		if (checksums[i] == sum) {
 			printf("Match with oops %i (%x)\n", i, sum);
@@ -108,7 +100,8 @@ void queue_backtrace(char *oops)
 	memset(new, 0, sizeof(struct oops));
 	new->next = queued_backtraces;
 	new->checksum = sum;
-	new->text = strdup(oops);
+	new->application = strdup(oops->application);
+	new->text = strdup(oops->text);
 	queued_backtraces = new;
 	newoops = 1;
 }

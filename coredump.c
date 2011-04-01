@@ -325,8 +325,9 @@ void wrapper_scan(char *command)
 	pclose(file);
 }
 
-char *extract_core(char *corefile)
+struct oops *extract_core(char *corefile)
 {
+	struct oops *oops;
 	char *command = NULL, *c1 = NULL, *c2 = NULL, *line = NULL;
 	char *coredump = NULL;
 	char *appfile;
@@ -383,7 +384,15 @@ char *extract_core(char *corefile)
 		free(line);
 	pclose(file);
 	free(command);
-	return c1;
+	oops = malloc(sizeof(struct oops));
+	if (!oops) {
+		free(c1);
+		return NULL;
+	}
+	memset(oops, 0, sizeof(struct oops));
+	oops->application = strdup(appfile);
+	oops->text = c1;
+	return oops;
 }
 
 void write_core_detail_file(char *filename, char *text)
@@ -405,21 +414,20 @@ void write_core_detail_file(char *filename, char *text)
 
 void process_corefile(char *filename)
 {
-	char *ptr;
+	struct oops *oops;
 	char newfile[8192];
-	ptr = extract_core(filename);
+	oops = extract_core(filename);
 
-	if (!ptr) {
+	if (!oops) {
 		unlink(filename);
-		free(ptr);
 		return;
 	}
 
-	queue_backtrace(ptr);
-	fprintf(stderr, "---[start of coredump]---\n%s\n---[end of coredump]---\n", ptr);
+	queue_backtrace(oops);
+	fprintf(stderr, "---[start of coredump]---\n%s\n---[end of coredump]---\n", oops->text);
 
 	/* try to write coredump text details to text file */
-	write_core_detail_file(filename, ptr);
+	write_core_detail_file(filename, oops->text);
 
 	sprintf(newfile,"%s.processed", filename);
 	if (do_unlink)
@@ -427,7 +435,9 @@ void process_corefile(char *filename)
 	else
 		rename(filename, newfile);
 
-	free(ptr);
+	free(oops->application);
+	free(oops->text);
+	free(oops);
 }
 
 

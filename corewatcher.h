@@ -32,7 +32,14 @@
 
 #define MAX_URLS 9
 
-extern void queue_backtrace(char *oops);
+struct oops {
+	struct oops *next;
+	char *application;
+	char *text;
+	unsigned int checksum;
+};
+
+extern void queue_backtrace(struct oops *oops);
 extern void submit_queue(void);
 extern void clear_queue(void);
 
