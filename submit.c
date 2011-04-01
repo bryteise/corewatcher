@@ -235,7 +235,7 @@ void submit_queue_with_url(char *wsubmit_url)
 		result = curl_easy_perform(handle);
 
 		curl_formfree(post);
-		dbus_say_thanks(result_url);
+		dbus_say_thanks(oops, result_url);
 
 		next = oops->next;
 		free(oops->text);

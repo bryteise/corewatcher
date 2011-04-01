@@ -22,6 +22,7 @@
  *	Arjan van de Ven <arjan@linux.intel.com>
  */
 
+#define _GNU_SOURCE
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -147,9 +148,13 @@ void dbus_ask_permission(char * detail_file_name)
 	dbus_message_unref(message);
 }
 
-void dbus_say_thanks(char *url)
+
+void dbus_say_thanks(struct oops *oops, char *url)
 {
 	DBusMessage *message;
+	unsigned int crash_id = 0;
+	char *dbus_msg_arg;
+
 	if (!bus)
 		return;
 	if (url && strlen(url)) {
@@ -163,8 +168,13 @@ void dbus_say_thanks(char *url)
 
 	message = dbus_message_new_signal("/org/corewatcher/submit/sent",
 			"org.corewatcher.submit.sent", "sent");
+	sscanf(url, "%*[^?]?number=%u", &crash_id);
+	asprintf(&dbus_msg_arg, "crash report #%u\n", crash_id);
+	dbus_message_append_args(message, DBUS_TYPE_STRING, &oops->application,
+	                                  DBUS_TYPE_STRING, &dbus_msg_arg, DBUS_TYPE_INVALID);
 	dbus_connection_send(bus, message, NULL);
 	dbus_message_unref(message);
+	free(dbus_msg_arg);
 }
 
 int main(int argc, char**argv)
