@@ -242,6 +242,8 @@ void submit_queue_with_url(char *wsubmit_url)
 		result = curl_easy_perform(handle);
 
 		curl_formfree(post);
+		dbus_say_thanks(result_url);
+
 		next = oops->next;
 		free(oops->text);
 		free(oops);
@@ -254,8 +256,6 @@ void submit_queue_with_url(char *wsubmit_url)
 	if (count && !testmode)
 		write_logfile(count, wsubmit_url);
 
-	if (count)
-		dbus_say_thanks(result_url);
 	/*
 	 * If we've reached the maximum count, we'll exit the program,
 	 * the program won't do any useful work anymore going forward.
