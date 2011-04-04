@@ -121,7 +121,7 @@ static char *get_release(void) {
 
 void set_wrapped_app(char *line)
 {
-	char *dline = NULL, *app = NULL, *ret = NULL;
+	char *dline = NULL, *app = NULL, *ret = NULL, *abs_path = NULL;
 	char delim[] = " '";
 
 	dline = strdup(line);
@@ -134,11 +134,15 @@ void set_wrapped_app(char *line)
 		}
 		app = strtok(NULL, delim);
 	}
-	ret = find_executable(app);
+	if (asprintf(&abs_path, "/usr/share/%s", app) < 0) {
+		free(dline);
+		return;
+	}
+	ret = find_executable(abs_path);
 	free(dline);
 	/*
 	 * May have got NULL from find_executable if app
-	 * isn't on the path but it doesn't matter as we
+	 * isn't in /usr/share but that's okay as we
 	 * don't change the filename in that case.
 	 */
 }
