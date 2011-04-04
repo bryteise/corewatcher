@@ -59,6 +59,7 @@ static int submitted;
  */
 static struct oops *queued_backtraces;
 static int newoops;
+static int unsubmittedoops;
 
 /* For communicating details to the applet, we write the
  * details in a file, and provide the filename to the applet
@@ -102,8 +103,9 @@ void queue_backtrace(struct oops *oops)
 	new->checksum = sum;
 	new->application = strdup(oops->application);
 	new->text = strdup(oops->text);
+	new->filename = strdup(oops->filename);
 	queued_backtraces = new;
-	newoops = 1;
+	unsubmittedoops = 1;
 }
 
 
@@ -233,9 +235,41 @@ void submit_queue_with_url(char *wsubmit_url)
 		curl_easy_setopt(handle, CURLOPT_HTTPPOST, post);
 		curl_easy_setopt(handle, CURLOPT_WRITEFUNCTION, writefunction);
 		result = curl_easy_perform(handle);
-
 		curl_formfree(post);
-		dbus_say_thanks(oops, result_url);
+
+		if (!result) {
+			struct oops *new;
+			new = malloc(sizeof(struct oops));
+			memset(new, 0, sizeof(struct oops));
+			new->next = queued_backtraces;
+			new->checksum = oops->checksum;
+			new->application = strdup(oops->application);
+			new->text = strdup(oops->text);
+			queued_backtraces = new;
+			newoops = 1;
+		} else {
+			char newfile[8192];
+			char oldfile[8192];
+			char *c;
+
+			memset(newfile, 0, sizeof(newfile));
+			memset(oldfile, 0, sizeof(oldfile));
+
+			strncpy(oldfile, oops->filename, 8192);
+			oldfile[8191] = '\0';
+			c = strstr(oldfile, ".processed");
+			if (c) {
+				oldfile[strlen(oldfile) - strlen(c)] = '\0';
+			}
+
+			sprintf(newfile,"%s%s.submitted",  core_folder, oldfile);
+			if (do_unlink)
+				unlink(oops->filename);
+			else
+				rename(oops->filename, newfile);
+
+			dbus_say_thanks(oops, result_url);
+		}
 
 		next = oops->next;
 		free(oops->text);
@@ -306,10 +340,11 @@ void clear_queue(void)
 
 void ask_permission(void)
 {
-	if (!newoops && !pinged)
+	if (!newoops && !pinged && !unsubmittedoops)
 		return;
 	pinged = 0;
 	newoops = 0;
+	unsubmittedoops = 0;
 	if (queued_backtraces) {
 		write_detail_file();
 		dbus_ask_permission(detail_filename);

@@ -396,6 +396,7 @@ struct oops *extract_core(char *corefile)
 	memset(oops, 0, sizeof(struct oops));
 	oops->application = strdup(appfile);
 	oops->text = c1;
+	oops->filename = strdup(corefile);
 	return oops;
 }
 
@@ -408,7 +409,7 @@ void write_core_detail_file(char *filename, char *text)
 	if (!(pid = strstr(filename, ".")))
 		return;
 
-	snprintf(detail_filename, 8192, "/tmp/%s.txt", ++pid);
+	snprintf(detail_filename, 8192, "%s%s.txt", core_folder, ++pid);
 	if ((fd = open(detail_filename, O_WRONLY | O_CREAT | O_TRUNC, 0)) != -1) {
 		write(fd, text, strlen(text));
 		fchmod(fd, 0644);
@@ -420,6 +421,7 @@ void process_corefile(char *filename)
 {
 	struct oops *oops;
 	char newfile[8192];
+
 	oops = extract_core(filename);
 
 	if (!oops) {
@@ -427,20 +429,25 @@ void process_corefile(char *filename)
 		return;
 	}
 
-	queue_backtrace(oops);
-	fprintf(stderr, "---[start of coredump]---\n%s\n---[end of coredump]---\n", oops->text);
+	/* if this oops hasn't been processed before need to write details out and rename */
+	if (!strstr(filename, ".processed")) {
 
-	/* try to write coredump text details to text file */
-	write_core_detail_file(filename, oops->text);
+		fprintf(stderr, "---[start of coredump]---\n%s\n---[end of coredump]---\n", oops->text);
 
-	sprintf(newfile,"%s.processed", filename);
-	if (do_unlink)
-		unlink(filename);
-	else
+		/* try to write coredump text details to text file */
+		write_core_detail_file(filename, oops->text);
+
+		sprintf(newfile,"%s%s.processed", core_folder, filename);
 		rename(filename, newfile);
+		free(oops->filename);
+		oops->filename = strdup(newfile);
+	}
+
+	queue_backtrace(oops);
 
 	free(oops->application);
 	free(oops->text);
+	free(oops->filename);
 	free(oops);
 }
 
@@ -455,7 +462,7 @@ int scan_dmesg(void __unused *unused)
 	if (!dir)
 		return 1;
 
-	fprintf(stderr, "+ scanning...\n");
+	fprintf(stderr, "+ scanning /tmp/...\n");
 	do {
 		entry = readdir(dir);
 		if (!entry)
@@ -470,11 +477,28 @@ int scan_dmesg(void __unused *unused)
 		fprintf(stderr, "+ Looking at %s\n", path);
 		process_corefile(path);
 	} while (entry);
+	closedir(dir);
+
+	dir = opendir(core_folder);
+	if (!dir)
+		return 1;
+
+	fprintf(stderr, "+ scanning %s...\n", core_folder);
+	do {
+		entry = readdir(dir);
+		if (!entry)
+			break;
+		if (!strstr(entry->d_name, ".processed"))
+			continue;
+		sprintf(path, "%s%s", core_folder, entry->d_name);
+		fprintf(stderr, "+ Looking at %s\n", path);
+		process_corefile(path);
+	} while(entry);
+	closedir(dir);
 
 	if (opted_in >= 2)
 		submit_queue();
 	else if (opted_in >= 1)
 		ask_permission();
-	closedir(dir);
 	return 1;
 }

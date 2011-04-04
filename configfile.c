@@ -38,6 +38,7 @@ int opted_in;
 int allow_distro_to_pass_on;
 char *submit_url[MAX_URLS];
 char *build_release;
+char *core_folder;
 int url_count = 0;
 extern int do_unlink;
 
@@ -100,6 +101,13 @@ void read_config_file(char *filename)
 			if (c)
 				build_release = strdup(c);
 		}
+		c = strstr(line, "core-folder");
+		if (c) {
+			c += 11;
+			c = strstr(c, "/");
+			if (c)
+				core_folder = strdup(c);
+		}
 		free(line);
 	}
 	fclose(file);
@@ -107,4 +115,6 @@ void read_config_file(char *filename)
 		build_release = strdup("/etc/meego-release");
 	if (!url_count)
 		submit_url[url_count++] = strdup("http://crashdb.meego.com/submitbug.php");
+	if (!core_folder)
+		core_folder = strdup("/tmp/corewatcher/");
 }
