@@ -91,11 +91,11 @@ void queue_backtrace(struct oops *oops)
 	sum = checksum(oops->text);
 	for (i = 0; i < submitted; i++) {
 		if (checksums[i] == sum) {
-			printf("Match with oops %i (%x)\n", i, sum);
+			printf("Match with oops %i (%d)\n", i, sum);
+			unlink(oops->filename);
 			return;
 		}
 	}
-	checksums[submitted++] = sum;
 
 	new = malloc(sizeof(struct oops));
 	memset(new, 0, sizeof(struct oops));
@@ -165,7 +165,9 @@ static void print_queue(void)
 
 		fprintf(stderr, "+ Submit text is:\n---[start of oops]---\n%s\n---[end of oops]---\n", oops->text);
 		next = oops->next;
+		free(oops->application);
 		free(oops->text);
+		free(oops->filename);
 		free(oops);
 		oops = next;
 		count++;
@@ -200,26 +202,32 @@ size_t writefunction( void *ptr, size_t size, size_t nmemb, void __attribute((un
 	return size * nmemb;
 }
 
-void submit_queue_with_url(char *wsubmit_url)
+void submit_queue_with_url(struct oops *queue, char *wsubmit_url)
 {
 	int result;
 	struct oops *oops;
-	struct oops *queue;
 	CURL *handle;
 	int count = 0;
 
 	handle = curl_easy_init();
 	curl_easy_setopt(handle, CURLOPT_URL, wsubmit_url);
 
-	queue = queued_backtraces;
-	queued_backtraces = NULL;
-	barrier();
-
 	oops = queue;
 	while (oops) {
 		struct curl_httppost *post = NULL;
 		struct curl_httppost *last = NULL;
 		struct oops *next;
+		unsigned int sum;
+		int i;
+
+		sum = oops->checksum;
+		for (i = 0; i < submitted; i++) {
+			if (checksums[i] == sum) {
+				printf("Match with oops %i (%d)\n", i, sum);
+				unlink(oops->filename);
+				goto dup;
+			}
+		}
 
 		/* set up the POST data */
 		curl_formadd(&post, &last,
@@ -238,16 +246,6 @@ void submit_queue_with_url(char *wsubmit_url)
 		curl_formfree(post);
 
 		if (!result) {
-			struct oops *new;
-			new = malloc(sizeof(struct oops));
-			memset(new, 0, sizeof(struct oops));
-			new->next = queued_backtraces;
-			new->checksum = oops->checksum;
-			new->application = strdup(oops->application);
-			new->text = strdup(oops->text);
-			queued_backtraces = new;
-			newoops = 1;
-		} else {
 			char newfile[8192];
 			char oldfile[8192];
 			char *c;
@@ -262,20 +260,25 @@ void submit_queue_with_url(char *wsubmit_url)
 				oldfile[strlen(oldfile) - strlen(c)] = '\0';
 			}
 
-			sprintf(newfile,"%s%s.submitted",  core_folder, oldfile);
+			sprintf(newfile,"%s.submitted",  oldfile);
+
 			if (do_unlink)
 				unlink(oops->filename);
 			else
 				rename(oops->filename, newfile);
 
+			checksums[submitted++] = oops->checksum;
 			dbus_say_thanks(oops, result_url);
 		}
 
+		count++;
+	dup:
 		next = oops->next;
+		free(oops->application);
 		free(oops->text);
+		free(oops->filename);
 		free(oops);
 		oops = next;
-		count++;
 	}
 
 	curl_easy_cleanup(handle);
@@ -296,6 +299,7 @@ void submit_queue_with_url(char *wsubmit_url)
 void submit_queue(void)
 {
 	int i;
+	struct oops *queue;
 	CURL *handle;
 
 	memset(result_url, 0, 4096);
@@ -305,6 +309,10 @@ void submit_queue(void)
 		return;
 	}
 
+	queue = queued_backtraces;
+	queued_backtraces = NULL;
+	barrier();
+
 	handle = curl_easy_init();
 	curl_easy_setopt(handle, CURLOPT_NOBODY, 1);
 	curl_easy_setopt(handle, CURLOPT_TIMEOUT, 5);
@@ -312,7 +320,7 @@ void submit_queue(void)
 	for (i = 0; i < url_count; i++) {
 		curl_easy_setopt(handle, CURLOPT_URL, submit_url[i]);
 		if (!curl_easy_perform(handle)) {
-			submit_queue_with_url(submit_url[i]);
+			submit_queue_with_url(queue, submit_url[i]);
 			break;
 		}
 	}
@@ -331,7 +339,9 @@ void clear_queue(void)
 	oops = queue;
 	while (oops) {
 		next = oops->next;
+		free(oops->application);
 		free(oops->text);
+		free(oops->filename);
 		free(oops);
 		oops = next;
 	}

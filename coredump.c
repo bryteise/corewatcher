@@ -36,6 +36,7 @@
 #include <sys/time.h>
 #include <dirent.h>
 #include <signal.h>
+#include <errno.h>
 
 #include "corewatcher.h"
 
@@ -47,6 +48,15 @@ char *component;
 char *arch;
 
 #define MAX(A,B) ((A) > (B) ? (A) : (B))
+
+long int get_time(char *filename)
+{
+	struct stat st;
+	if (stat(filename, &st)) {
+		return 0;
+	}
+	return st.st_mtim.tv_sec;
+}
 
 char *get_build(void) {
 	FILE *file;
@@ -253,9 +263,8 @@ char *build_core_header(char *appfile, char *corefile) {
 	char *build = get_build();
 	char *release = get_release();
 	char *kernel = get_kernel();
-	struct timeval tv;
+	long int time = get_time(corefile);
 
-	gettimeofday(&tv, NULL);
 	get_package_info(appfile);
 
 	ret = asprintf(&result,
@@ -281,7 +290,7 @@ char *build_core_header(char *appfile, char *corefile) {
 		       appfile, sig, signame(sig),
 		       release,
 		       build,
-		       tv.tv_sec,
+		       time,
 		       uid);
 
 	free(kernel);
@@ -431,14 +440,27 @@ void process_corefile(char *filename)
 
 	/* if this oops hasn't been processed before need to write details out and rename */
 	if (!strstr(filename, ".processed")) {
+		char *dfile = NULL, *c = NULL, *d = NULL;
+		char delim[] = "/";
 
+		dfile = strdup(filename);
+		if (!dfile)
+			return;
+
+		c = strtok(dfile, delim);
+		while(c) {
+			d = c;
+			c = strtok(NULL, delim);
+		}
 		fprintf(stderr, "---[start of coredump]---\n%s\n---[end of coredump]---\n", oops->text);
 
 		/* try to write coredump text details to text file */
 		write_core_detail_file(filename, oops->text);
-
-		sprintf(newfile,"%s%s.processed", core_folder, filename);
+		if (!mkdir(core_folder, S_IRWXU | S_IRWXG | S_IRWXO) && errno != EEXIST)
+			return;
+		sprintf(newfile,"%s%s.processed", core_folder, d);
 		rename(filename, newfile);
+		free(dfile);
 		free(oops->filename);
 		oops->filename = strdup(newfile);
 	}
