@@ -268,7 +268,7 @@ void submit_queue_with_url(struct oops *queue, char *wsubmit_url)
 				rename(oops->filename, newfile);
 
 			checksums[submitted++] = oops->checksum;
-			dbus_say_thanks(oops, result_url);
+			dbus_say_thanks(result_url);
 		}
 
 		count++;

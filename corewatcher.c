@@ -149,11 +149,9 @@ void dbus_ask_permission(char * detail_file_name)
 }
 
 
-void dbus_say_thanks(struct oops *oops, char *url)
+void dbus_say_thanks(char *url)
 {
 	DBusMessage *message;
-	unsigned int crash_id = 0;
-	char *dbus_msg_arg;
 
 	if (!bus)
 		return;
@@ -165,13 +163,31 @@ void dbus_say_thanks(struct oops *oops, char *url)
 		dbus_message_unref(message);
 		syslog(LOG_WARNING, "corewatcher.org: oops is posted as %s", url);
 	}
+}
+
+void dbus_say_found(struct oops *oops)
+{
+	DBusMessage *message;
+	char detail_filename[8192];
+	char *dbus_msg_arg;
+	char *pid;
+
+	if (!bus || !oops)
+		return;
+
+	if (!(pid = strstr(oops->filename, "."))) {
+		sprintf(detail_filename, "Unknown");
+	} else {
+		snprintf(detail_filename, 8192, "%s%s.txt", core_folder, ++pid);
+	}
 
 	message = dbus_message_new_signal("/org/corewatcher/submit/sent",
 			"org.corewatcher.submit.sent", "sent");
-	sscanf(url, "%*[^?]?number=%u", &crash_id);
-	asprintf(&dbus_msg_arg, "crash report #%u\n", crash_id);
+	if ((asprintf(&dbus_msg_arg, "crash report located at: %s\n", detail_filename)) <= 0)
+		return;
 	dbus_message_append_args(message, DBUS_TYPE_STRING, &oops->application,
 	                                  DBUS_TYPE_STRING, &dbus_msg_arg, DBUS_TYPE_INVALID);
+
 	dbus_connection_send(bus, message, NULL);
 	dbus_message_unref(message);
 	free(dbus_msg_arg);

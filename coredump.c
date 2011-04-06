@@ -390,6 +390,7 @@ struct oops *extract_core(char *corefile)
 				continue;
 			free(c2);
 		} else {
+			/* keep going even if asprintf has errors */
 			asprintf(&c1, "%s", line);
 		}
 	}
@@ -453,6 +454,7 @@ void process_corefile(char *filename)
 			c = strtok(NULL, delim);
 		}
 		fprintf(stderr, "---[start of coredump]---\n%s\n---[end of coredump]---\n", oops->text);
+		dbus_say_found(oops);
 
 		/* try to write coredump text details to text file */
 		write_core_detail_file(filename, oops->text);
@@ -463,9 +465,11 @@ void process_corefile(char *filename)
 		free(dfile);
 		free(oops->filename);
 		oops->filename = strdup(newfile);
+	} else {
+		/* backtrace queued only if files have been processed
+		   to avoid putting a new coredump in twice */
+		queue_backtrace(oops);
 	}
-
-	queue_backtrace(oops);
 
 	free(oops->application);
 	free(oops->text);
