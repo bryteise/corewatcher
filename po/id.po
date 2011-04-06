@@ -1,20 +1,21 @@
-# Indonesian translation of corewatcher
-# Copyright (C) 2010 THE corewatcher'S COPYRIGHT HOLDER
-# This file is distributed under the same license as the corewatcher package.
-# Andika Triwidada <andika@gmail.com>, 2010.
-#
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+# 
 msgid ""
 msgstr ""
-"Project-Id-Version: corewatcher master\n"
+"Project-Id-Version: corewatcher\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2010-07-28 10:59-0700\n"
-"PO-Revision-Date: 2010-09-01 23:16+0700\n"
-"Last-Translator: Andika Triwidada <andika@gmail.com>\n"
-"Language-Team: Indonesia <andika+meego@gmail.com>\n"
+"PO-Revision-Date: 2011-04-06 17:07+0000\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: Indonesian <None>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Plural-Forms: nplurals=1; plural=0;\n"
+"Language: id\n"
+"Plural-Forms: nplurals=1; plural=0\n"
 
 #: corewatcher-applet.c:314
 msgid "Always"
@@ -43,32 +44,21 @@ msgstr "Rincian"
 
 #: corewatcher-applet.c:278
 msgid ""
-"Diagnostic information from your application has been sent to <a href="
-"\"crashdb.meego.com\">crashdb.meego.com</a> for the MeeGo developers to work "
-"on. \n"
-" Thank you for contributing to improve the quality of the MeeGo "
-"distribution.\n"
+"Diagnostic information from your application has been sent to <a href=\"crashdb.meego.com\">crashdb.meego.com</a> for the MeeGo developers to work on. \n"
+" Thank you for contributing to improve the quality of the MeeGo distribution.\n"
 msgstr ""
-"Informasi diagnostik dari aplikasi Anda telah dikirim ke <a href=\"crashdb."
-"meego.com\">crashdb.meego.com</a> untuk digarap oleh para pengembang "
-"MeeGo. \n"
+"Informasi diagnostik dari aplikasi Anda telah dikirim ke <a href=\"crashdb.meego.com\">crashdb.meego.com</a> untuk digarap oleh para pengembang MeeGo. \n"
 " Terima kasih atas sumbangan untuk perbaikan kualitas distribusi MeeGo.\n"
 
 #: corewatcher-applet.c:285
 msgid ""
-"Diagnostic information from your application has been sent to <a href="
-"\"crashdb.meego.com\">crashdb.meego.com</a> for the MeeGo developers to work "
-"on. \n"
-" Thank you for contributing to improve the quality of the MeeGo "
-"distribution.\n"
+"Diagnostic information from your application has been sent to <a href=\"crashdb.meego.com\">crashdb.meego.com</a> for the MeeGo developers to work on. \n"
+" Thank you for contributing to improve the quality of the MeeGo distribution.\n"
 " You can view your submitted oops <a href=\"crashdb.meego.com\">here</a>\n"
 msgstr ""
-"Informasi diagnostik dari aplikasi Anda telah dikirim ke <a href=\"crashdb."
-"meego.com\">crashdb.meego.com</a> untuk digarap oleh para pengembang "
-"MeeGo. \n"
+"Informasi diagnostik dari aplikasi Anda telah dikirim ke <a href=\"crashdb.meego.com\">crashdb.meego.com</a> untuk digarap oleh para pengembang MeeGo. \n"
 " Terima kasih atas sumbangan untuk perbaikan kualitas distribusi MeeGo.\n"
-" Anda dapat melihat oops yang Anda kirim <a href=\"crashdb.meego.com"
-"\">disini</a>\n"
+" Anda dapat melihat oops yang Anda kirim <a href=\"crashdb.meego.com\">disini</a>\n"
 
 #: corewatcher-applet.c:316
 msgid "Never again"
@@ -84,8 +74,8 @@ msgid ""
 "submit this information to the crashdb.meego.com website for use by the "
 "MeeGo developers?\n"
 msgstr ""
-"Ada informasi diagnostik yang tersedia bagi kegagalan ini. Apakah Anda ingin "
-"mengirim informasi ini ke situs web crashdb.meeg.com untuk diperiksa oleh "
+"Ada informasi diagnostik yang tersedia bagi kegagalan ini. Apakah Anda ingin"
+" mengirim informasi ini ke situs web crashdb.meeg.com untuk diperiksa oleh "
 "para pengembang MeeGo?\n"
 
 #: corewatcher-applet.c:232

@@ -1,21 +1,21 @@
 # SOME DESCRIPTIVE TITLE.
 # Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
 # This file is distributed under the same license as the PACKAGE package.
-# iñigo varela <ivarela@softastur.org>, 2010.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+# 
 msgid ""
 msgstr ""
-"Project-Id-Version: MeeGo Corewatcher\n"
+"Project-Id-Version: corewatcher\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2010-07-28 10:59-0700\n"
-"PO-Revision-Date: 2010-09-18 10:57+0200\n"
-"Last-Translator: iñigo varela <ivarela@softastur.org>\n"
-"Language-Team: alministradores@softastur.org\n"
-"Language: ast\n"
+"PO-Revision-Date: 2011-04-06 17:07+0000\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: Asturian <alministradores@softastur.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Plural-Forms: nplurals=2; plural=(n != 1);\n"
-"X-Generator: Virtaal 0.5.2\n"
+"Language: ast\n"
+"Plural-Forms: nplurals=2; plural=(n != 1)\n"
 
 #: corewatcher-applet.c:314
 msgid "Always"
@@ -44,29 +44,19 @@ msgstr "Detalles"
 
 #: corewatcher-applet.c:278
 msgid ""
-"Diagnostic information from your application has been sent to <a "
-"href=\"crashdb.meego.com\">crashdb.meego.com</a> for the MeeGo developers to "
-"work on. \n"
-" Thank you for contributing to improve the quality of the MeeGo "
-"distribution.\n"
+"Diagnostic information from your application has been sent to <a href=\"crashdb.meego.com\">crashdb.meego.com</a> for the MeeGo developers to work on. \n"
+" Thank you for contributing to improve the quality of the MeeGo distribution.\n"
 msgstr ""
-"La información de diagnósticu de l'aplicación unvióse a <a "
-"href=\"crashdb.meego.com\">crashdb.meego.com</a> pa que los desendolcadores de "
-"MeeGo puedan trabayar nella. \n"
+"La información de diagnósticu de l'aplicación unvióse a <a href=\"crashdb.meego.com\">crashdb.meego.com</a> pa que los desendolcadores de MeeGo puedan trabayar nella. \n"
 " Gracies por contribuyir a meyorar la calidá de la distribución de MeeGo. \n"
 
 #: corewatcher-applet.c:285
 msgid ""
-"Diagnostic information from your application has been sent to <a "
-"href=\"crashdb.meego.com\">crashdb.meego.com</a> for the MeeGo developers to "
-"work on. \n"
-" Thank you for contributing to improve the quality of the MeeGo "
-"distribution.\n"
+"Diagnostic information from your application has been sent to <a href=\"crashdb.meego.com\">crashdb.meego.com</a> for the MeeGo developers to work on. \n"
+" Thank you for contributing to improve the quality of the MeeGo distribution.\n"
 " You can view your submitted oops <a href=\"crashdb.meego.com\">here</a>\n"
 msgstr ""
-"La información de diagnósticu de l'aplicación unvióse a <a "
-"href=\"crashdb.meego.com\">crashdb.meego.com</a> pa que los desendolcadores de "
-"MeeGo puedan trabayar nella. \n"
+"La información de diagnósticu de l'aplicación unvióse a <a href=\"crashdb.meego.com\">crashdb.meego.com</a> pa que los desendolcadores de MeeGo puedan trabayar nella. \n"
 " Gracies por contribuyir a meyorar la calidá de la distribución de MeeGo. \n"
 " Puedes ver los fallos qu'unviasti <a href=\"crashdb.meego.com\">equí</a>\n"
 
@@ -74,16 +64,17 @@ msgstr ""
 msgid "Never again"
 msgstr "Nunca más"
 
-#: corewatcher-applet.c:205
-#: corewatcher-applet.c:256
+#: corewatcher-applet.c:205 corewatcher-applet.c:256
 msgid "Send"
 msgstr "Unviar"
 
 #: corewatcher-applet.c:234
-msgid "There is diagnostic information available for this failure. Do you want to "
+msgid ""
+"There is diagnostic information available for this failure. Do you want to "
 "submit this information to the crashdb.meego.com website for use by the "
 "MeeGo developers?\n"
-msgstr "Hai información de diagnósticu disponible tocante a esti fallu. ¿Quies "
+msgstr ""
+"Hai información de diagnósticu disponible tocante a esti fallu. ¿Quies "
 "unviar esta información al sitio web crashdb.meego.com pa que los "
 "desendolcadores de MeeGo puedan usala?\n"
 

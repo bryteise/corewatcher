@@ -2,21 +2,20 @@
 # Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
 # This file is distributed under the same license as the PACKAGE package.
 # FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
-#
+# 
 msgid ""
 msgstr ""
-"Project-Id-Version: MeeGo Corewatcher\n"
+"Project-Id-Version: corewatcher\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2010-07-28 10:59-0700\n"
-"PO-Revision-Date: 2010-09-03 13:15-0800\n"
-"Last-Translator: Martine <martine.landais@intel.com>\n"
-"Language-Team: \n"
+"PO-Revision-Date: 2011-04-06 17:07+0000\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: French <None>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Plural-Forms: nplurals=2; plural=n!=1;\n"
-"X-Poedit-Language: French\n"
-"X-Poedit-Country: FRANCE\n"
+"Language: fr\n"
+"Plural-Forms: nplurals=2; plural=(n > 1)\n"
 
 #: corewatcher-applet.c:314
 msgid "Always"
@@ -65,14 +64,19 @@ msgstr ""
 msgid "Never again"
 msgstr "Plus jamais"
 
-#: corewatcher-applet.c:205
-#: corewatcher-applet.c:256
+#: corewatcher-applet.c:205 corewatcher-applet.c:256
 msgid "Send"
 msgstr "Envoyer"
 
 #: corewatcher-applet.c:234
-msgid "There is diagnostic information available for this failure. Do you want to submit this information to the crashdb.meego.com website for use by the MeeGo developers?\n"
-msgstr "Il y a des informations de diagnostic disponibles pour cet échec. Voulez-vous soumettre ces informations sur le site Web crashdb.meego.com pour pouvoir être utilisées par les développeurs de MeeGo ?\n"
+msgid ""
+"There is diagnostic information available for this failure. Do you want to "
+"submit this information to the crashdb.meego.com website for use by the "
+"MeeGo developers?\n"
+msgstr ""
+"Il y a des informations de diagnostic disponibles pour cet échec. Voulez-"
+"vous soumettre ces informations sur le site Web crashdb.meego.com pour "
+"pouvoir être utilisées par les développeurs de MeeGo ?\n"
 
 #: corewatcher-applet.c:232
 msgid "Your system had an application failure"
@@ -81,4 +85,3 @@ msgstr "Une application de votre système a échoué"
 #: corewatcher-applet.c:465
 msgid "corewatcher client"
 msgstr "client corewatcher"
-

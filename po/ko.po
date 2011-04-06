@@ -2,20 +2,20 @@
 # Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
 # This file is distributed under the same license as the PACKAGE package.
 # FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
-#
+# 
 msgid ""
 msgstr ""
-"Project-Id-Version: MeeGo Corewatcher\n"
+"Project-Id-Version: corewatcher\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2010-07-28 10:59-0700\n"
-"PO-Revision-Date: 2010-09-03 13:03-0800\n"
-"Last-Translator: \n"
-"Language-Team: \n"
+"PO-Revision-Date: 2011-03-22 15:17+0000\n"
+"Last-Translator: peremen <kde@peremen.name>\n"
+"Language-Team: Korean <None>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Plural-Forms: nplurals=2; plural=n!=1;\n"
-"X-Poedit-Language: Korean\n"
+"Language: ko\n"
+"Plural-Forms: nplurals=1; plural=0\n"
 
 #: corewatcher-applet.c:314
 msgid "Always"
@@ -23,11 +23,11 @@ msgstr "항상 허용"
 
 #: corewatcher-applet.c:275
 msgid "Application bug diagnostic information sent"
-msgstr "응용 프로그램 버그 진단 정보 전송"
+msgstr "프로그램 버그 진단 정보 전송됨"
 
 #: corewatcher-applet.c:187
 msgid "Application failure details"
-msgstr "응용 프로그램 오류 세부 정보"
+msgstr "프로그램 오류 세부 정보"
 
 #: corewatcher-applet.c:207
 msgid "Cancel"
@@ -47,7 +47,7 @@ msgid ""
 "Diagnostic information from your application has been sent to <a href=\"crashdb.meego.com\">crashdb.meego.com</a> for the MeeGo developers to work on. \n"
 " Thank you for contributing to improve the quality of the MeeGo distribution.\n"
 msgstr ""
-"응용 프로그램의 진단 정보는 MeeGo 개발자들이 살펴볼 수 있도록 <a href=\"crashdb.meego.com\">crashdb.meego.com</a>으로 보내졌습니다. \n"
+"프로그램의 진단 정보를 MeeGo 개발자들이 살펴볼 수 있도록 <a href=\"crashdb.meego.com\">crashdb.meego.com</a>으로 보냈습니다. \n"
 "MeeGo 배포판의 품질 향상에 기여해 주셔서 감사합니다.\n"
 
 #: corewatcher-applet.c:285
@@ -56,7 +56,7 @@ msgid ""
 " Thank you for contributing to improve the quality of the MeeGo distribution.\n"
 " You can view your submitted oops <a href=\"crashdb.meego.com\">here</a>\n"
 msgstr ""
-"응용 프로그램의 진단 정보는 MeeGo 개발자들이 살펴볼 수 있도록 <a href=\"crashdb.meego.com\">crashdb.meego.com</a>으로 보내졌습니다. \n"
+"프로그램의 진단 정보를 MeeGo 개발자들이 살펴볼 수 있도록 <a href=\"crashdb.meego.com\">crashdb.meego.com</a>으로 보냈습니다. \n"
 "MeeGo 배포판의 품질 향상에 기여해 주셔서 감사합니다.\n"
 "제출하신 오류 정보는 <a href=\"crashdb.meego.com\">이곳에서</a> 볼 수 있습니다.\n"
 
@@ -64,20 +64,23 @@ msgstr ""
 msgid "Never again"
 msgstr "다시 실행하지 않음"
 
-#: corewatcher-applet.c:205
-#: corewatcher-applet.c:256
+#: corewatcher-applet.c:205 corewatcher-applet.c:256
 msgid "Send"
 msgstr "보내기"
 
 #: corewatcher-applet.c:234
-msgid "There is diagnostic information available for this failure. Do you want to submit this information to the crashdb.meego.com website for use by the MeeGo developers?\n"
-msgstr "이 실패에 대한 진단 정보를 사용할 수 있습니다. MeeGo 개발자들에 의해 사용되는 crashdb.meego.com 웹사이트에 이 정보를 제출하시겠습니까?\n"
+msgid ""
+"There is diagnostic information available for this failure. Do you want to "
+"submit this information to the crashdb.meego.com website for use by the "
+"MeeGo developers?\n"
+msgstr ""
+"이 실패에 대한 진단 정보를 사용할 수 있습니다. MeeGo 개발자들이 볼 수 있도록 crashdb.meego.com 웹 사이트에 이 "
+"정보를 제출하시겠습니까?\n"
 
 #: corewatcher-applet.c:232
 msgid "Your system had an application failure"
-msgstr "시스템에 응용 프로그램 오류가 있었습니다. "
+msgstr "시스템에 프로그램 오류가 있었습니다"
 
 #: corewatcher-applet.c:465
 msgid "corewatcher client"
 msgstr "corewatcher 클라이언트"
-
