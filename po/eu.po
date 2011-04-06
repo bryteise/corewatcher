@@ -1,0 +1,87 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+# 
+msgid ""
+msgstr ""
+"Project-Id-Version: corewatcher\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2010-07-28 10:59-0700\n"
+"PO-Revision-Date: 2011-04-01 19:52+0000\n"
+"Last-Translator: 9and3r <9and3r@gmail.com>\n"
+"Language-Team: Basque <None>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: eu\n"
+"Plural-Forms: nplurals=2; plural=(n != 1)\n"
+
+#: corewatcher-applet.c:314
+msgid "Always"
+msgstr "Beti"
+
+#: corewatcher-applet.c:275
+msgid "Application bug diagnostic information sent"
+msgstr "Aplikazioaren bug-aren diagnostiko infromazioa bidalita"
+
+#: corewatcher-applet.c:187
+msgid "Application failure details"
+msgstr "Aplikazioaren akatsaren xehetasunak"
+
+#: corewatcher-applet.c:207
+msgid "Cancel"
+msgstr "Utzi"
+
+#: corewatcher-applet.c:454
+#, c-format
+msgid "Connecting to system bus failed: %s\n"
+msgstr "Sistemaren bus sarea konektatzean huts egin du: %s\n"
+
+#: corewatcher-applet.c:260
+msgid "Details"
+msgstr "Xehetasunak"
+
+#: corewatcher-applet.c:278
+msgid ""
+"Diagnostic information from your application has been sent to <a href=\"crashdb.meego.com\">crashdb.meego.com</a> for the MeeGo developers to work on. \n"
+" Thank you for contributing to improve the quality of the MeeGo distribution.\n"
+msgstr ""
+"Aplikazioaren diagnostikoaren informazioa bidali da zure ordenagailutik <a href=\"crashdb.meego.com\">crashdb.meego.com</a> orrialdera MeeGo-ko garatzaileak honekin lan egiteko. \n"
+" Eskerrik asko MeeGo distribuzioaren kalitatea hobetzen laguntzeagatik.\n"
+
+#: corewatcher-applet.c:285
+msgid ""
+"Diagnostic information from your application has been sent to <a href=\"crashdb.meego.com\">crashdb.meego.com</a> for the MeeGo developers to work on. \n"
+" Thank you for contributing to improve the quality of the MeeGo distribution.\n"
+" You can view your submitted oops <a href=\"crashdb.meego.com\">here</a>\n"
+msgstr ""
+"Aplikazioaren diagnostikoaren informazioa bidali da zure ordenagailutik <a href=\"crashdb.meego.com\">crashdb.meego.com</a> orrialdera MeeGo-ko garatzaileak honekin lan egiteko. \n"
+" Eskerrik asko MeeGo distribuzioaren kalitatea hobetzen laguntzeagatik.\n"
+" Zuk bidalitako informeak ikus ditzakezu <a href=\"crashdb.meego.com\">hemen</a>\n"
+
+#: corewatcher-applet.c:316
+msgid "Never again"
+msgstr "Inoiz ez berriro"
+
+#: corewatcher-applet.c:205 corewatcher-applet.c:256
+msgid "Send"
+msgstr "Bidali"
+
+#: corewatcher-applet.c:234
+msgid ""
+"There is diagnostic information available for this failure. Do you want to "
+"submit this information to the crashdb.meego.com website for use by the "
+"MeeGo developers?\n"
+msgstr ""
+"Hutsegite honen informazio diagnostikoa dago eskuragarri. Informazio hau "
+"crashdb.meego.com webgunera bidaltzea nahi duzu  MeeGo-ko garatzaileak "
+"erabil dezaten?\n"
+
+#: corewatcher-applet.c:232
+msgid "Your system had an application failure"
+msgstr "Zure sistemak aplikazioaren hutsegite bat izan du"
+
+#: corewatcher-applet.c:465
+msgid "corewatcher client"
+msgstr "corewatcher-aren klientea"
