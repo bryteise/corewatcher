@@ -152,7 +152,7 @@ void unlink_detail_file(void)
 
 static void print_queue(void)
 {
-	struct oops *oops;
+	struct oops *oops, *next;
 	struct oops *queue;
 	int count = 0;
 
@@ -161,8 +161,6 @@ static void print_queue(void)
 	barrier();
 	oops = queue;
 	while (oops) {
-		struct oops *next;
-
 		fprintf(stderr, "+ Submit text is:\n---[start of oops]---\n%s\n---[end of oops]---\n", oops->text);
 		next = oops->next;
 		free(oops->application);
@@ -172,7 +170,6 @@ static void print_queue(void)
 		oops = next;
 		count++;
 	}
-
 }
 
 static void write_logfile(int count, char *wsubmit_url)
@@ -216,7 +213,6 @@ void submit_queue_with_url(struct oops *queue, char *wsubmit_url)
 	while (oops) {
 		struct curl_httppost *post = NULL;
 		struct curl_httppost *last = NULL;
-		struct oops *next;
 		unsigned int sum;
 		int i;
 
@@ -273,12 +269,7 @@ void submit_queue_with_url(struct oops *queue, char *wsubmit_url)
 
 		count++;
 	dup:
-		next = oops->next;
-		free(oops->application);
-		free(oops->text);
-		free(oops->filename);
-		free(oops);
-		oops = next;
+		oops = oops->next;
 	}
 
 	curl_easy_cleanup(handle);
@@ -299,7 +290,7 @@ void submit_queue_with_url(struct oops *queue, char *wsubmit_url)
 void submit_queue(void)
 {
 	int i;
-	struct oops *queue;
+	struct oops *queue, *oops, *next;
 	CURL *handle;
 
 	memset(result_url, 0, 4096);
@@ -323,6 +314,18 @@ void submit_queue(void)
 			submit_queue_with_url(queue, submit_url[i]);
 			break;
 		}
+	}
+
+
+
+	oops = queue;
+	while (oops) {
+		next = oops->next;
+		free(oops->application);
+		free(oops->text);
+		free(oops->filename);
+		free(oops);
+		oops = next;
 	}
 
 	curl_easy_cleanup(handle);

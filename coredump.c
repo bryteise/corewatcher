@@ -73,18 +73,20 @@ char *get_build(void) {
 		if (getline(&line, &dummy, file) <= 0)
 			break;
 		if (strstr(line, "BUILD") != NULL) {
-			char *c;
-
-			c = strchr(line, '\n');
-			if (c) *c = 0;
+			char *c, *build;
 
 			c = strstr(line, "BUILD");
 			c += 7;
-			c = strdup(c);
+			build = strdup(c);
+
+			c = strchr(build, '\n');
+			if (c) *c = 0;
 
 			free(line);
 			fclose(file);
-			return c;
+			return build;
+		} else {
+			free(line);
 		}
 	}
 
