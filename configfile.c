@@ -41,6 +41,7 @@ char *build_release;
 char *core_folder;
 int url_count = 0;
 extern int do_unlink;
+int private_report = 0;
 
 void read_config_file(char *filename)
 {
@@ -107,6 +108,11 @@ void read_config_file(char *filename)
 			c = strstr(c, "/");
 			if (c)
 				core_folder = strdup(c);
+		}
+		c = strstr(line, "private");
+		if (c) {
+			if (strstr(c, "yes"))
+				private_report = 1;
 		}
 		free(line);
 	}

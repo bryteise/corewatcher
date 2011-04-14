@@ -58,6 +58,7 @@ extern char *submit_url[MAX_URLS];
 extern int url_count;
 extern char *build_release;
 extern char *core_folder;
+extern int private_report;
 
 extern int testmode;
 extern int pinged;

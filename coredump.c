@@ -266,6 +266,7 @@ char *build_core_header(char *appfile, char *corefile) {
 	char *release = get_release();
 	char *kernel = get_kernel();
 	long int time = get_time(corefile);
+	char *private = private_report ? "private: yes\n" : "";
 
 	get_package_info(appfile);
 
@@ -282,6 +283,7 @@ char *build_core_header(char *appfile, char *corefile) {
 		       "build: %s\n"
 		       "time: %lu\n"
 		       "uid: %d\n"
+	               "%s"
 		       "\nbacktrace\n-----\n",
 		       arch,
 		       component,
@@ -293,7 +295,8 @@ char *build_core_header(char *appfile, char *corefile) {
 		       release,
 		       build,
 		       time,
-		       uid);
+		       uid,
+	               private);
 
 	free(kernel);
 	free(package);
