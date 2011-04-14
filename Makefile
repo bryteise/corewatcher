@@ -19,12 +19,13 @@ MY_CFLAGS := `pkg-config --cflags libnotify gtk+-2.0`
 # and that makes the applet load faster and use less memory.
 #
 LDF_A := -Wl,--as-needed `pkg-config --libs libnotify gtk+-2.0`
+LDF_C := -Wl,--as-needed `pkg-config --libs glib-2.0`
 LDF_D := -Wl,--as-needed `pkg-config --libs glib-2.0 dbus-glib-1` `curl-config --libs` -Wl,"-z relro" -Wl,"-z now"
 
-all:	corewatcher corewatcher-applet corewatcher.8.gz
+all:	corewatcher corewatcher-config corewatcher-applet corewatcher.8.gz
 	@(cd po/ && $(MAKE) $@)
 
-noui:	corewatcher corewatcher.8.gz
+noui:	corewatcher corewatcher-config corewatcher.8.gz
 
 .c.o:
 	$(CC) $(CFLAGS) $(MY_CFLAGS) -c -o $@ $<
@@ -34,6 +35,9 @@ corewatcher:	corewatcher.o submit.o coredump.o configfile.o find_file.o corewatc
 	gcc corewatcher.o submit.o coredump.o configfile.o find_file.o $(LDF_D) -o corewatcher
 	@(cd po/ && $(MAKE))
 
+corewatcher-config: corewatcher-config.o
+	gcc corewatcher-config.o $(LDF_C)-o corewatcher-config
+
 corewatcher-applet: corewatcher-applet.o
 	gcc corewatcher-applet.o $(LDF_A)-o corewatcher-applet
 
@@ -41,7 +45,7 @@ corewatcher.8.gz: corewatcher.8
 	gzip -9 -c $< > $@
 
 clean:
-	rm -f *~ *.o *.ko DEADJOE corewatcher corewatcher-applet *.out */*~ corewatcher.8.gz
+	rm -f *~ *.o *.ko DEADJOE corewatcher corewatcher-config corewatcher-applet *.out */*~ corewatcher.8.gz
 	@(cd po/ && $(MAKE) $@)
 
 
@@ -62,6 +66,7 @@ install-system: corewatcher.8.gz
 install-corewatcher: corewatcher
 	-mkdir -p $(DESTDIR)$(SBINDIR)
 	install -m 0755 corewatcher $(DESTDIR)$(SBINDIR)/
+	install -m 0755 corewatcher-config $(DESTDIR)$(SBINDIR)/
 
 install-applet: corewatcher-applet
 	-mkdir -p $(DESTDIR)$(BINDIR)

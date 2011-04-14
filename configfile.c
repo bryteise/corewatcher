@@ -68,7 +68,7 @@ void read_config_file(char *filename)
 		n = strchr(line, '\n');
 		if (n) *n = 0;
 
-		c = strstr(line, "allow-submit ");
+		c = strstr(line, "allow-submit");
 		if (c) {
 			c += 13;
 			if (strstr(c, "yes"))
@@ -76,18 +76,18 @@ void read_config_file(char *filename)
 			if (strstr(c, "ask"))
 				opted_in = 1;
 		}
-		c = strstr(line, "allow-pass-on ");
+		c = strstr(line, "allow-pass-on");
 		if (c) {
 			c += 14;
 			if (strstr(c, "yes"))
 				allow_distro_to_pass_on = 1;
 		}
-		c = strstr(line, "unlink ");
+		c = strstr(line, "unlink");
 		if (c) {
 			if (strstr(c, "yes"))
 				do_unlink = 1;
 		}
-		c = strstr(line, "submit-url ");
+		c = strstr(line, "submit-url");
 		if (c && url_count <= MAX_URLS) {
 			c += 11;
 			c = strstr(c, "http:");
