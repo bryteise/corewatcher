@@ -32,6 +32,7 @@
 
 #include <asm/unistd.h>
 
+#include <proxy.h>
 #include <curl/curl.h>
 
 #include "corewatcher.h"
@@ -199,7 +200,7 @@ size_t writefunction( void *ptr, size_t size, size_t nmemb, void __attribute((un
 	return size * nmemb;
 }
 
-void submit_queue_with_url(struct oops *queue, char *wsubmit_url)
+void submit_queue_with_url(struct oops *queue, char *wsubmit_url, char *proxy)
 {
 	int result;
 	struct oops *oops;
@@ -208,6 +209,8 @@ void submit_queue_with_url(struct oops *queue, char *wsubmit_url)
 
 	handle = curl_easy_init();
 	curl_easy_setopt(handle, CURLOPT_URL, wsubmit_url);
+	if (proxy)
+		curl_easy_setopt(handle, CURLOPT_PROXY, proxy);
 
 	oops = queue;
 	while (oops) {
@@ -289,9 +292,12 @@ void submit_queue_with_url(struct oops *queue, char *wsubmit_url)
 
 void submit_queue(void)
 {
-	int i;
+	int i, n;
 	struct oops *queue, *oops, *next;
 	CURL *handle;
+	pxProxyFactory *pf;
+	char **proxies = NULL;
+	char *proxy = NULL;
 
 	memset(result_url, 0, 4096);
 
@@ -304,19 +310,31 @@ void submit_queue(void)
 	queued_backtraces = NULL;
 	barrier();
 
+	pf = px_proxy_factory_new();
 	handle = curl_easy_init();
 	curl_easy_setopt(handle, CURLOPT_NOBODY, 1);
 	curl_easy_setopt(handle, CURLOPT_TIMEOUT, 5);
 
 	for (i = 0; i < url_count; i++) {
 		curl_easy_setopt(handle, CURLOPT_URL, submit_url[i]);
+		if (pf)
+			proxies = px_proxy_factory_get_proxies(pf, submit_url[i]);
+		if (proxies) {
+			proxy = proxies[0];
+			curl_easy_setopt(handle, CURLOPT_PROXY, proxy);
+		} else {
+			proxy = NULL;
+		}
 		if (!curl_easy_perform(handle)) {
-			submit_queue_with_url(queue, submit_url[i]);
+			submit_queue_with_url(queue, submit_url[i], proxy);
 			break;
 		}
+		for (n = 0; proxies[n]; n++)
+			free(proxies[n]);
+		free(proxies);
 	}
 
-
+	px_proxy_factory_free(pf);
 
 	oops = queue;
 	while (oops) {
