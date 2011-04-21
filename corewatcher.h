@@ -32,11 +32,21 @@
 
 #define MAX_URLS 9
 
+#define FREE_OOPS(oops)                          \
+	do {                                     \
+		free(oops->application);         \
+		free(oops->text);                \
+		free(oops->filename);            \
+		free(oops->detail_filename);     \
+                free(oops);                      \
+	} while(0)
+
 struct oops {
 	struct oops *next;
 	char *application;
 	char *text;
 	char *filename;
+	char *detail_filename;
 	unsigned int checksum;
 };
 
@@ -47,8 +57,9 @@ extern void clear_queue(void);
 extern int scan_dmesg(void * unused);
 extern void read_config_file(char *filename);
 
-extern void ask_permission(void);
-extern void dbus_ask_permission(char * detail_file_name);
+
+extern void ask_permission(char *detail_folder);
+extern void dbus_ask_permission(char *detail_folder);
 extern void dbus_say_thanks(char *url);
 extern void dbus_say_found(struct oops *oops);
 

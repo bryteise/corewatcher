@@ -62,12 +62,6 @@ static struct oops *queued_backtraces;
 static int newoops;
 static int unsubmittedoops;
 
-/* For communicating details to the applet, we write the
- * details in a file, and provide the filename to the applet
- */
-static char *detail_filename;
-
-
 static unsigned int checksum(char *ptr)
 {
 	unsigned int temp = 0;
@@ -105,51 +99,10 @@ void queue_backtrace(struct oops *oops)
 	new->application = strdup(oops->application);
 	new->text = strdup(oops->text);
 	new->filename = strdup(oops->filename);
+	new->detail_filename = strdup(oops->detail_filename);
 	queued_backtraces = new;
 	unsubmittedoops = 1;
 }
-
-
-void write_detail_file(void)
-{
-	int temp_fileno;
-	FILE *tmpf;
-	struct oops *oops;
-	int count = 0;
-
-	detail_filename = strdup("/tmp/corewatcher.XXXXXX");
-	temp_fileno = mkstemp(detail_filename);
-	if (temp_fileno < 0) {
-		free(detail_filename);
-		detail_filename = NULL;
-		return;
-	}
-	/* regular user must be able to read this detail file to be
-	 * useful; there is nothing worth doing if fchmod fails.
-	 */
-	fchmod(temp_fileno, 0644);
-	tmpf = fdopen(temp_fileno, "w");
-	oops = queued_backtraces;
-	while (oops) {
-		count++; /* Users are not programmers, start at 1 */
-		fprintf(tmpf, "Application failure message %d:\n", count);
-		fprintf(tmpf, "%s", oops->text);
-		fprintf(tmpf, "\n\n");
-		oops = oops->next;
-	}
-	fclose(tmpf);
-	close(temp_fileno);
-}
-
-void unlink_detail_file(void)
-{
-	if (detail_filename) {
-		if (do_unlink)
-			unlink(detail_filename);
-		free(detail_filename);
-	}
-}
-
 
 static void print_queue(void)
 {
@@ -164,10 +117,7 @@ static void print_queue(void)
 	while (oops) {
 		fprintf(stderr, "+ Submit text is:\n---[start of oops]---\n%s\n---[end of oops]---\n", oops->text);
 		next = oops->next;
-		free(oops->application);
-		free(oops->text);
-		free(oops->filename);
-		free(oops);
+		FREE_OOPS(oops);
 		oops = next;
 		count++;
 	}
@@ -261,8 +211,10 @@ void submit_queue_with_url(struct oops *queue, char *wsubmit_url, char *proxy)
 
 			sprintf(newfile,"%s.submitted",  oldfile);
 
-			if (do_unlink)
+			if (do_unlink) {
+				unlink(oops->detail_filename);
 				unlink(oops->filename);
+			}
 			else
 				rename(oops->filename, newfile);
 
@@ -285,7 +237,6 @@ void submit_queue_with_url(struct oops *queue, char *wsubmit_url, char *proxy)
 	 * the program won't do any useful work anymore going forward.
 	 */
 	if (submitted >= MAX_CHECKSUMS-1) {
-		unlink_detail_file();
 		exit(EXIT_SUCCESS);
 	}
 }
@@ -339,10 +290,7 @@ void submit_queue(void)
 	oops = queue;
 	while (oops) {
 		next = oops->next;
-		free(oops->application);
-		free(oops->text);
-		free(oops->filename);
-		free(oops);
+		FREE_OOPS(oops);
 		oops = next;
 	}
 
@@ -360,16 +308,13 @@ void clear_queue(void)
 	oops = queue;
 	while (oops) {
 		next = oops->next;
-		free(oops->application);
-		free(oops->text);
-		free(oops->filename);
-		free(oops);
+		FREE_OOPS(oops);
 		oops = next;
 	}
 	write_logfile(0, "Unknown");
 }
 
-void ask_permission(void)
+void ask_permission(char *detail_folder)
 {
 	if (!newoops && !pinged && !unsubmittedoops)
 		return;
@@ -377,7 +322,6 @@ void ask_permission(void)
 	newoops = 0;
 	unsubmittedoops = 0;
 	if (queued_backtraces) {
-		write_detail_file();
-		dbus_ask_permission(detail_filename);
+		dbus_ask_permission(detail_folder);
 	}
 }

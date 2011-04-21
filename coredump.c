@@ -432,10 +432,55 @@ void write_core_detail_file(char *filename, char *text)
 	}
 }
 
+char *get_core_detail_filename(char *filename)
+{
+	char *pid, *c, *s;
+	char *detail_filename;
+
+	if (!(s = strstr(filename, ".")))
+		return NULL;
+
+	pid = strdup(++s);
+	if (!(c = strstr(pid, "."))) {
+		free(pid);
+		return NULL;
+	}
+
+	*c = '\0';
+
+	if ((asprintf(&detail_filename, "%s%s.txt", core_folder, pid)) < 0) {
+		free(pid);
+		return NULL;
+	}
+
+	free(pid);
+	return detail_filename;
+}
+
+char *remove_directories(char *fullname)
+{
+	char *dfile = NULL, *c = NULL, *d = NULL;
+	char delim[] = "/";
+
+	dfile = strdup(fullname);
+	if (!dfile)
+		return NULL;
+
+	c = strtok(dfile, delim);
+	while(c) {
+		d = c;
+		c = strtok(NULL, delim);
+	}
+	d = strdup(d);
+	free(dfile);
+
+	return d;
+}
+
 void process_corefile(char *filename)
 {
 	struct oops *oops;
-	char newfile[8192];
+	char newfile[8192], *fn = NULL;
 
 	oops = extract_core(filename);
 
@@ -444,42 +489,35 @@ void process_corefile(char *filename)
 		return;
 	}
 
+	if (!(fn = remove_directories(filename))) {
+		FREE_OOPS(oops);
+		return;
+	}
+
 	/* if this oops hasn't been processed before need to write details out and rename */
-	if (!strstr(filename, ".processed")) {
-		char *dfile = NULL, *c = NULL, *d = NULL;
-		char delim[] = "/";
-
-		dfile = strdup(filename);
-		if (!dfile)
-			return;
-
-		c = strtok(dfile, delim);
-		while(c) {
-			d = c;
-			c = strtok(NULL, delim);
-		}
+	if (!strstr(fn, ".processed")) {
 		fprintf(stderr, "---[start of coredump]---\n%s\n---[end of coredump]---\n", oops->text);
 		dbus_say_found(oops);
 
+		if (!mkdir(core_folder, S_IRWXU | S_IRWXG | S_IRWXO) && errno != EEXIST) {
+			free(fn);
+			FREE_OOPS(oops);
+			return;
+		}
 		/* try to write coredump text details to text file */
 		write_core_detail_file(filename, oops->text);
-		if (!mkdir(core_folder, S_IRWXU | S_IRWXG | S_IRWXO) && errno != EEXIST)
-			return;
-		sprintf(newfile,"%s%s.processed", core_folder, d);
+		sprintf(newfile,"%s%s.processed", core_folder, fn);
 		rename(filename, newfile);
-		free(dfile);
-		free(oops->filename);
-		oops->filename = strdup(newfile);
+
 	} else {
 		/* backtrace queued only if files have been processed
 		   to avoid putting a new coredump in twice */
+		oops->detail_filename = get_core_detail_filename(fn);
 		queue_backtrace(oops);
 	}
 
-	free(oops->application);
-	free(oops->text);
-	free(oops->filename);
-	free(oops);
+	free(fn);
+	FREE_OOPS(oops);
 }
 
 
@@ -530,6 +568,6 @@ int scan_dmesg(void __unused *unused)
 	if (opted_in >= 2)
 		submit_queue();
 	else if (opted_in >= 1)
-		ask_permission();
+		ask_permission(core_folder);
 	return 1;
 }

@@ -132,16 +132,16 @@ static DBusHandlerResult got_message(
 	return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
 }
 
-void dbus_ask_permission(char * detail_file_name)
+void dbus_ask_permission(char * detail_folder)
 {
 	DBusMessage *message;
 	if (!bus)
 		return;
 	message = dbus_message_new_signal("/org/corewatcher/submit/permission",
 			"org.corewatcher.submit.permission", "ask");
-	if (detail_file_name) {
+	if (detail_folder) {
 		dbus_message_append_args(message,
-			DBUS_TYPE_STRING, &detail_file_name,
+			DBUS_TYPE_STRING, &detail_folder,
 			DBUS_TYPE_INVALID);
 	}
 	dbus_connection_send(bus, message, NULL);
