@@ -526,6 +526,7 @@ int scan_dmesg(void __unused *unused)
 	DIR *dir;
 	struct dirent *entry;
 	char path[PATH_MAX*2];
+	struct oops *oq;
 
 	dir = opendir("/tmp/");
 	if (!dir)
@@ -554,15 +555,23 @@ int scan_dmesg(void __unused *unused)
 
 	fprintf(stderr, "+ scanning %s...\n", core_folder);
 	do {
+	skip:
+		memset(path, 0, PATH_MAX*2);
+		oq = get_oops_queue();
 		entry = readdir(dir);
 		if (!entry)
 			break;
 		if (!strstr(entry->d_name, ".processed"))
 			continue;
 		sprintf(path, "%s%s", core_folder, entry->d_name);
+		while (oq) {
+			if (!(strcmp(oq->filename, path)))
+				goto skip;
+			oq = oq->next;
+		}
 		fprintf(stderr, "+ Looking at %s\n", path);
 		process_corefile(path);
-	} while(entry);
+	} while(1);
 	closedir(dir);
 
 	if (opted_in >= 2)

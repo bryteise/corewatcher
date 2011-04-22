@@ -57,7 +57,7 @@ extern void clear_queue(void);
 extern int scan_dmesg(void * unused);
 extern void read_config_file(char *filename);
 
-
+extern struct oops *get_oops_queue(void);
 extern void ask_permission(char *detail_folder);
 extern void dbus_ask_permission(char *detail_folder);
 extern void dbus_say_thanks(char *url);

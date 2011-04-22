@@ -62,6 +62,11 @@ static struct oops *queued_backtraces;
 static int newoops;
 static int unsubmittedoops;
 
+struct oops *get_oops_queue(void)
+{
+	return queued_backtraces;
+}
+
 static unsigned int checksum(char *ptr)
 {
 	unsigned int temp = 0;
@@ -220,7 +225,8 @@ void submit_queue_with_url(struct oops *queue, char *wsubmit_url, char *proxy)
 
 			checksums[submitted++] = oops->checksum;
 			dbus_say_thanks(result_url);
-		}
+		} else
+			queue_backtrace(oops);
 
 		count++;
 	dup:
@@ -243,7 +249,7 @@ void submit_queue_with_url(struct oops *queue, char *wsubmit_url, char *proxy)
 
 void submit_queue(void)
 {
-	int i, n;
+	int i, n, submitted = 0;
 	struct oops *queue, *oops, *next;
 	CURL *handle;
 	pxProxyFactory *pf;
@@ -278,6 +284,7 @@ void submit_queue(void)
 		}
 		if (!curl_easy_perform(handle)) {
 			submit_queue_with_url(queue, submit_url[i], proxy);
+			submitted = 1;
 			break;
 		}
 		for (n = 0; proxies[n]; n++)
@@ -287,12 +294,15 @@ void submit_queue(void)
 
 	px_proxy_factory_free(pf);
 
-	oops = queue;
-	while (oops) {
-		next = oops->next;
-		FREE_OOPS(oops);
-		oops = next;
-	}
+	if (submitted) {
+		oops = queue;
+		while (oops) {
+			next = oops->next;
+			FREE_OOPS(oops);
+			oops = next;
+		}
+	} else
+		queued_backtraces = queue;
 
 	curl_easy_cleanup(handle);
 }
