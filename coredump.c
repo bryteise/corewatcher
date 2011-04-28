@@ -43,6 +43,9 @@
 int do_unlink = 0;
 int uid;
 int sig;
+char *package;
+char *component;
+char *arch;
 
 #define MAX(A,B) ((A) > (B) ? (A) : (B))
 
@@ -156,6 +159,63 @@ void set_wrapped_app(char *line)
 	 */
 }
 
+void get_package_info(char *appfile) {
+	char *command = NULL, *line = NULL;
+	char *c;
+	FILE *file;
+	int ret = 0;
+	size_t size = 0;
+
+	if (asprintf(&command, "rpm -q --whatprovides %s --queryformat \"%%{NAME}-%%{VERSION}-%%{RELEASE}-%%{ARCH}\"", appfile) < 0) {
+		package = strdup("Unknown");
+	} else {
+		file = popen(command, "r");
+		free(command);
+		ret = getline(&line, &size, file);
+		if ((!size) || (ret < 0)) {
+			package = strdup("Unknown");
+		} else {
+			c = strchr(line, '\n');
+			if (c) *c = 0;
+			package = strdup(line);
+		}
+		pclose(file);
+	}
+
+	if (asprintf(&command, "rpm -q --whatprovides %s --queryformat \"%%{NAME}\"", appfile) < 0) {
+		component = strdup("Unknown");
+	} else {
+		file = popen(command, "r");
+		free(command);
+		ret = getline(&line, &size, file);
+		if ((!size) || (ret < 0)) {
+			component = strdup("Unknown");
+		} else {
+			c = strchr(line, '\n');
+			if (c) *c = 0;
+			component = strdup(line);
+		}
+		pclose(file);
+	}
+
+	if (asprintf(&command, "rpm -q --whatprovides %s --queryformat \"%%{ARCH}\"", appfile) < 0) {
+		arch = strdup("Unknown");
+	} else {
+		file = popen(command, "r");
+		free(command);
+		ret = getline(&line, &size, file);
+		if ((!size) || (ret < 0)) {
+			arch = strdup("Unknown");
+		} else {
+			c = strchr(line, '\n');
+			if (c) *c = 0;
+			arch = strdup(line);
+		}
+		pclose(file);
+	}
+	free(line);
+}
+
 char *signame(int sig)
 {
 	switch(sig) {
@@ -208,11 +268,16 @@ char *build_core_header(char *appfile, char *corefile) {
 	long int time = get_time(corefile);
 	char *private = private_report ? "private: yes\n" : "";
 
+	get_package_info(appfile);
+
 	ret = asprintf(&result,
 		       "analyzer: corewatcher-gdb\n"
+		       "architecture: %s\n"
+		       "component: %s\n"
 		       "coredump: %s\n"
 		       "executable: %s\n"
 		       "kernel: %s\n"
+		       "package: %s\n"
 		       "reason: Process %s was killed by signal %d (%s)\n"
 		       "release: %s\n"
 		       "build: %s\n"
@@ -220,9 +285,12 @@ char *build_core_header(char *appfile, char *corefile) {
 		       "uid: %d\n"
 	               "%s"
 		       "\nbacktrace\n-----\n",
+		       arch,
+		       component,
 		       corefile,
 		       appfile,
 		       kernel,
+		       package,
 		       appfile, sig, signame(sig),
 		       release,
 		       build,
@@ -231,8 +299,11 @@ char *build_core_header(char *appfile, char *corefile) {
 	               private);
 
 	free(kernel);
+	free(package);
 	free(release);
 	free(build);
+	free(component);
+	free(arch);
 
 	if (ret < 0)
 		result = strdup("Unknown");
