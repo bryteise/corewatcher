@@ -355,6 +355,9 @@ struct oops *extract_core(char *corefile)
 	if (!coredump)
 		return NULL;
 
+	if (!(strcmp(coredump, "rpm") && strcmp(coredump, "gdb") && strcmp(coredump, "corewatcher")))
+		return NULL;
+
 	appfile = find_executable(coredump);
 	/* coredump no longer used, so free it as it was strdup'd */
 	free(coredump);
