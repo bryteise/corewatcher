@@ -67,7 +67,6 @@ char *get_build(void) {
 		return line;
 	}
 	while (!feof(file)) {
-		line = NULL;
 		if (getline(&line, &dummy, file) <= 0)
 			break;
 		if (strstr(line, "BUILD") != NULL) {
@@ -75,7 +74,8 @@ char *get_build(void) {
 
 			c = strstr(line, "BUILD");
 			c += 7;
-			build = strdup(c);
+			if (!(build = strdup(c)))
+				break;
 
 			c = strchr(build, '\n');
 			if (c) *c = 0;
@@ -83,12 +83,11 @@ char *get_build(void) {
 			free(line);
 			fclose(file);
 			return build;
-		} else {
-			free(line);
 		}
 	}
 
 	fclose(file);
+	free(line);
 
 	line = strdup("Unknown");
 
@@ -107,7 +106,6 @@ static char *get_release(void) {
 	}
 
 	while (!feof(file)) {
-		line = NULL;
 		if (getline(&line, &dummy, file) <= 0)
 			break;
 
@@ -123,6 +121,7 @@ static char *get_release(void) {
 	}
 
 	fclose(file);
+	free(line);
 
 	line = strdup("Unknown");
 
@@ -179,6 +178,7 @@ GList *get_core_file_list(char *appfile, char *dump_text)
 	if ((c = strdup(appfile)))
 		files = g_list_prepend(files, c);
 
+	free(txt);
 	return files;
 }
 
