@@ -36,6 +36,7 @@
 #include <sys/time.h>
 #include <dirent.h>
 #include <signal.h>
+#include <glib.h>
 #include <errno.h>
 
 #include "corewatcher.h"
@@ -43,9 +44,6 @@
 int do_unlink = 0;
 int uid;
 int sig;
-char *package;
-char *component;
-char *arch;
 
 #define MAX(A,B) ((A) > (B) ? (A) : (B))
 
@@ -159,61 +157,254 @@ void set_wrapped_app(char *line)
 	 */
 }
 
-void get_package_info(char *appfile) {
-	char *command = NULL, *line = NULL;
+GList *get_core_file_list(char *appfile, char *dump_text)
+{
+	char *txt = NULL, *part = NULL;
+	char delim[] = " ',`;\n\"";
+	char *c;
+	GList *files = NULL;
+
+	if (!(txt = strdup(dump_text)))
+		return NULL;
+
+	part = strtok(txt, delim);
+	while(part) {
+		if (strstr(part, "/")) {
+			if (!(c = strdup(part)))
+				continue;
+			files = g_list_prepend(files, c);
+		}
+		part = strtok(NULL, delim);
+	}
+	if ((c = strdup(appfile)))
+		files = g_list_prepend(files, c);
+
+	return files;
+}
+
+char *run_cmd(char *cmd)
+{
+	char *line = NULL, *str = NULL;
 	char *c;
 	FILE *file;
 	int ret = 0;
 	size_t size = 0;
 
-	if (asprintf(&command, "rpm -q --whatprovides %s --queryformat \"%%{NAME}-%%{VERSION}-%%{RELEASE}-%%{ARCH}\"", appfile) < 0) {
-		package = strdup("Unknown");
-	} else {
-		file = popen(command, "r");
-		free(command);
-		ret = getline(&line, &size, file);
-		if ((!size) || (ret < 0)) {
-			package = strdup("Unknown");
-		} else {
-			c = strchr(line, '\n');
-			if (c) *c = 0;
-			package = strdup(line);
-		}
-		pclose(file);
-	}
-
-	if (asprintf(&command, "rpm -q --whatprovides %s --queryformat \"%%{NAME}\"", appfile) < 0) {
-		component = strdup("Unknown");
-	} else {
-		file = popen(command, "r");
-		free(command);
-		ret = getline(&line, &size, file);
-		if ((!size) || (ret < 0)) {
-			component = strdup("Unknown");
-		} else {
-			c = strchr(line, '\n');
-			if (c) *c = 0;
-			component = strdup(line);
-		}
-		pclose(file);
-	}
-
-	if (asprintf(&command, "rpm -q --whatprovides %s --queryformat \"%%{ARCH}\"", appfile) < 0) {
-		arch = strdup("Unknown");
-	} else {
-		file = popen(command, "r");
-		free(command);
-		ret = getline(&line, &size, file);
-		if ((!size) || (ret < 0)) {
-			arch = strdup("Unknown");
-		} else {
-			c = strchr(line, '\n');
-			if (c) *c = 0;
-			arch = strdup(line);
-		}
-		pclose(file);
+	file = popen(cmd, "r");
+	ret = getline(&line, &size, file);
+	if (size || ret >= 0) {
+		c = strchr(line, '\n');
+		if (c) *c = 0;
+		str = strdup(line);
 	}
 	free(line);
+	pclose(file);
+
+	return str;
+}
+
+char *lookup_part(char *check, char *line)
+{
+        char *c1, *c2;
+        char *c = NULL;
+        if (strncmp(check, line, strlen(check)))
+                return NULL;
+        if (!(c1 = strstr(line, ":")))
+                return NULL;
+        c1 += 2;
+        if (!(c2 = strstr(c1, " ")))
+                return NULL;
+        *c2 = 0;
+        if (!(c = strdup(c1)))
+                return NULL;
+        return c;
+}
+
+int append(char **s, char *e, char *o)
+{
+        char *t;
+	if (!s || !(*s))
+		return -1;
+        t = *s;
+        *s = NULL;
+        if (asprintf(s, "%s%s%s", t, o, e) < 0) {
+                *s = t;
+                return -1;
+        }
+        free(t);
+        return 0;
+}
+
+void build_times(char *cmd, GHashTable *ht_p2p, GHashTable *ht_p2d)
+{
+        FILE *file;
+        int ret, i;
+        char *line = NULL, *dline = NULL, *pack = NULL, *date = NULL;
+        char *nm, *vr, *rl, *c, *p;
+        size_t size = 0;
+        char name[] = "Name";
+        char version[] = "Version";
+        char release[] = "Release";
+        char delim[] = " ";
+
+        file = popen(cmd, "r");
+        while ((ret = getline(&line, &size, file)) >= 0 && size) {
+                pack = nm = vr = rl = NULL;
+                if (!(nm = lookup_part(name, line)))
+                        goto cleanup;
+                if ((ret = getline(&line, &size, file)) < 0 && !size) {
+                        goto cleanup;
+                }
+                if (!(vr = lookup_part(version, line))) {
+                        goto cleanup;
+                }
+                if ((ret = getline(&line, &size, file)) < 0 && !size) {
+                        goto cleanup;
+                }
+                if (!(rl = lookup_part(release, line))) {
+                        goto cleanup;
+                }
+                if (asprintf(&pack, "%s-%s-%s", nm, vr, rl) < 0) {
+                        goto cleanup;
+                }
+		/* using p instead of pack to keep freeing the hashtables uniform */
+		if (!(p = g_hash_table_lookup(ht_p2p, pack)))
+			goto cleanup;
+
+                while ((ret = getline(&dline, &size, file)) >= 0 && size) {
+                        if (strncmp("*", dline, 1))
+                                continue;
+			/* twice to skip the leading '*' */
+                        c = strtok(dline, delim);
+			c = strtok(NULL, delim);
+                        if (!(date = strdup(c))) {
+                                goto cleanup;
+			}
+                        for (i = 0; i < 3; i++) {
+                                c = strtok(NULL, delim);
+                                if ((ret = append(&date, c, " ")) < 0)
+                                        goto cleanup;
+                        }
+			g_hash_table_insert(ht_p2d, p, date);
+			date = NULL;
+			break;
+                }
+	cleanup:
+                free(nm);
+                free(vr);
+                free(rl);
+                free(pack);
+		free(date);
+        }
+	pclose(file);
+	free(dline);
+	free(line);
+
+        return;
+}
+
+char *get_package_info(char *appfile, char *dump_text)
+{
+	GList *l, *files = NULL, *hfiles = NULL, *tmpl = NULL;
+	GHashTable *ht_f2f, *ht_f2p, *ht_p2p, *ht_p2d;
+	char *c1, *cmd = NULL, *out = NULL;
+	char find_pkg[] = "rpm -qf --queryformat \"%{NAME}-%{VERSION}-%{RELEASE}\" ";
+	char find_date[] = "rpm -qi --changelog";
+	char dev_null[] = "2>/dev/null";
+
+	if (!(ht_f2f = g_hash_table_new(g_str_hash, g_str_equal)))
+		return NULL;
+	if (!(ht_f2p = g_hash_table_new_full(g_str_hash, g_str_equal, NULL, free)))
+		return NULL;
+	if (!(ht_p2p = g_hash_table_new(g_str_hash, g_str_equal)))
+		return NULL;
+	if (!(ht_p2d = g_hash_table_new_full(g_str_hash, g_str_equal, NULL, free)))
+		return NULL;
+	if (!(files = get_core_file_list(appfile, dump_text)))
+		return NULL;
+
+	/* get files in hash to remove duplicates */
+	for (l = files; l; l = l->next)
+		if (!g_hash_table_lookup(ht_f2f, l->data))
+			g_hash_table_insert(ht_f2f, l->data, l->data);
+
+	hfiles = g_hash_table_get_keys(ht_f2f);
+
+	/* run through files one at a time in case some files don't have packages and it */
+	/* isn't guaranteed we will see the error correspond with the file we are testing */
+	for (l = hfiles; l; l = l->next) {
+		if (asprintf(&cmd, "%s%s %s", find_pkg, (char *) l->data, dev_null) < 0)
+			goto clean_up;
+		c1 = run_cmd(cmd);
+		free(cmd);
+		cmd = NULL;
+
+		if (c1 && strlen(c1) > 0)
+			g_hash_table_insert(ht_f2p, l->data, c1);
+		else {
+			g_hash_table_insert(ht_f2p, l->data, NULL);
+			free(c1);
+		}
+	}
+
+	tmpl = g_hash_table_get_values(ht_f2p);
+	for (l = tmpl; l; l = l->next) {
+		if (l->data && !g_hash_table_lookup(ht_p2p, l->data))
+			g_hash_table_insert(ht_p2p, l->data, l->data);
+	}
+
+	g_list_free(tmpl);
+	tmpl = g_hash_table_get_keys(ht_p2p);
+	if (asprintf(&cmd, "%s", find_date) < 0)
+		goto clean_up;
+	for (l = tmpl; l; l = l->next) {
+		append(&cmd, l->data, " ");
+	}
+	g_list_free(tmpl);
+	build_times(cmd, ht_p2p, ht_p2d);
+	free(cmd);
+
+	if (!(out = strdup("")))
+		goto clean_up;
+	for (l = hfiles; l; l = l->next) {
+		if (append(&out, l->data, "") < 0)
+			continue;
+
+		if (!(c1 = g_hash_table_lookup(ht_f2p, l->data))) {
+			if (append(&out, "\n", "") < 0)
+				goto clean_out;
+			continue;
+		} else
+			if (append(&out, c1, ":") < 0)
+				goto clean_out;
+
+		if (!(c1 = g_hash_table_lookup(ht_p2d, c1))) {
+			if (append(&out, "\n", "") < 0)
+				goto clean_out;
+			continue;
+		} else
+			if (append(&out, c1, ":") < 0)
+				goto clean_out;
+
+		if (append(&out, "\n", "") < 0)
+			goto clean_out;
+	}
+	goto clean_up;
+
+clean_out:
+	free(out);
+	out = NULL;
+
+clean_up:
+	g_hash_table_destroy(ht_p2d);
+	g_hash_table_destroy(ht_p2p);
+	g_hash_table_destroy(ht_f2p);
+	g_hash_table_destroy(ht_f2f);
+	g_list_free_full(files, free);
+	g_list_free(hfiles);
+	g_list_free(tmpl);
+
+	return out;
 }
 
 char *signame(int sig)
@@ -266,44 +457,29 @@ char *build_core_header(char *appfile, char *corefile) {
 	char *release = get_release();
 	char *kernel = get_kernel();
 	long int time = get_time(corefile);
-	char *private = private_report ? "private: yes\n" : "";
-
-	get_package_info(appfile);
 
 	ret = asprintf(&result,
 		       "analyzer: corewatcher-gdb\n"
-		       "architecture: %s\n"
-		       "component: %s\n"
 		       "coredump: %s\n"
 		       "executable: %s\n"
 		       "kernel: %s\n"
-		       "package: %s\n"
 		       "reason: Process %s was killed by signal %d (%s)\n"
 		       "release: %s\n"
 		       "build: %s\n"
 		       "time: %lu\n"
-		       "uid: %d\n"
-	               "%s"
-		       "\nbacktrace\n-----\n",
-		       arch,
-		       component,
+		       "uid: %d\n",
 		       corefile,
 		       appfile,
 		       kernel,
-		       package,
 		       appfile, sig, signame(sig),
 		       release,
 		       build,
 		       time,
-		       uid,
-	               private);
+		       uid);
 
 	free(kernel);
-	free(package);
 	free(release);
 	free(build);
-	free(component);
-	free(arch);
 
 	if (ret < 0)
 		result = strdup("Unknown");
@@ -346,10 +522,13 @@ void wrapper_scan(char *command)
 struct oops *extract_core(char *corefile)
 {
 	struct oops *oops;
-	char *command = NULL, *c1 = NULL, *c2 = NULL, *line = NULL;
-	char *coredump = NULL;
+	int ret;
+	char *command = NULL, *h1 = NULL, *h2 = NULL, *c1 = NULL, *c2 = NULL, *line = NULL;
+	char *coredump = NULL, *text = NULL;
 	char *appfile;
 	FILE *file;
+	char *private = private_report ? "private: yes\n" : "";
+
 
 	coredump = find_coredump(corefile);
 	if (!coredump)
@@ -370,12 +549,11 @@ struct oops *extract_core(char *corefile)
 	}
 
 	wrapper_scan(command);
-	c1 = build_core_header(appfile, corefile);
+	h1 = build_core_header(appfile, corefile);
 
 	file = popen(command, "r");
 	while (!feof(file)) {
 		size_t size = 0;
-		int ret;
 
 		c2 = c1;
 		free(line);
@@ -399,21 +577,40 @@ struct oops *extract_core(char *corefile)
 			free(c2);
 		} else {
 			/* keep going even if asprintf has errors */
-			asprintf(&c1, "%s", line);
+			ret = asprintf(&c1, "%s", line);
 		}
 	}
 	if (line)
 		free(line);
 	pclose(file);
 	free(command);
+
+	if (!(h2 = get_package_info(appfile, c1)))
+		h2 = strdup("Unknown");
+
+	ret = asprintf(&text,
+		       "%s"
+		       "package-info\n-----\n"
+		       "%s"
+		       "\n-----\n"
+		       "%s"
+		       "\nbacktrace\n-----\n"
+		       "%s",
+		       h1, h2, private, c1);
+	if (ret < 0)
+		text = NULL;
+	free(h1);
+	free(h2);
+	free(c1);
+
 	oops = malloc(sizeof(struct oops));
 	if (!oops) {
-		free(c1);
+		free(text);
 		return NULL;
 	}
 	memset(oops, 0, sizeof(struct oops));
 	oops->application = strdup(appfile);
-	oops->text = c1;
+	oops->text = text;
 	oops->filename = strdup(corefile);
 	return oops;
 }

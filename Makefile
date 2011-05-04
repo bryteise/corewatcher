@@ -12,7 +12,7 @@ CC ?= gcc
 
 CFLAGS := -O2 -g -fstack-protector -D_FORTIFY_SOURCE=2 -Wall -W -Wstrict-prototypes -Wundef -fno-common -Werror-implicit-function-declaration -Wdeclaration-after-statement -Wformat -Wformat-security -Werror=format-security
 
-MY_CFLAGS := `pkg-config --cflags libnotify gtk+-2.0 libproxy-1.0`
+MY_CFLAGS := `pkg-config --cflags libnotify gtk+-2.0 libproxy-1.0 glib-2.0`
 #
 # pkg-config tends to make programs pull in a ton of libraries, not all
 # are needed. -Wl,--as-needed tells the linker to just drop unused ones,
