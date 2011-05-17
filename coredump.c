@@ -192,7 +192,7 @@ char *run_cmd(char *cmd)
 
 	file = popen(cmd, "r");
 	ret = getline(&line, &size, file);
-	if (size || ret >= 0) {
+	if (size && ret > 0) {
 		c = strchr(line, '\n');
 		if (c) *c = 0;
 		str = strdup(line);
@@ -207,6 +207,9 @@ char *lookup_part(char *check, char *line)
 {
         char *c1, *c2;
         char *c = NULL;
+	if (!line)
+		return NULL;
+
         if (strncmp(check, line, strlen(check)))
                 return NULL;
         if (!(c1 = strstr(line, ":")))
@@ -248,17 +251,17 @@ void build_times(char *cmd, GHashTable *ht_p2p, GHashTable *ht_p2d)
         char delim[] = " ";
 
         file = popen(cmd, "r");
-        while ((ret = getline(&line, &size, file)) >= 0 && size) {
+        while ((ret = getline(&line, &size, file)) > 0 && size) {
                 pack = nm = vr = rl = NULL;
                 if (!(nm = lookup_part(name, line)))
                         goto cleanup;
-                if ((ret = getline(&line, &size, file)) < 0 && !size) {
+                if ((ret = getline(&line, &size, file)) <= 0 || !size) {
                         goto cleanup;
                 }
                 if (!(vr = lookup_part(version, line))) {
                         goto cleanup;
                 }
-                if ((ret = getline(&line, &size, file)) < 0 && !size) {
+                if ((ret = getline(&line, &size, file)) <= 0 || !size) {
                         goto cleanup;
                 }
                 if (!(rl = lookup_part(release, line))) {
@@ -271,7 +274,7 @@ void build_times(char *cmd, GHashTable *ht_p2p, GHashTable *ht_p2d)
 		if (!(p = g_hash_table_lookup(ht_p2p, pack)))
 			goto cleanup;
 
-                while ((ret = getline(&dline, &size, file)) >= 0 && size) {
+                while ((ret = getline(&dline, &size, file)) > 0 && size) {
                         if (strncmp("*", dline, 1))
                                 continue;
 			/* twice to skip the leading '*' */
@@ -438,7 +441,7 @@ static char *get_kernel(void) {
 	free(command);
 
 	ret = getline(&line, &size, file);
-	if ((!size) || (ret < 0)) {
+	if (!size || ret <= 0) {
 		line = strdup("Unknown");
 		return line;
 	}
