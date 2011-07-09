@@ -1,3 +1,4 @@
+#define _GNU_SOURCE
 /*
  * Copyright 2007, Intel Corporation
  *
@@ -20,9 +21,9 @@
  *
  * Authors:
  *	Arjan van de Ven <arjan@linux.intel.com>
+ *	William Douglas <william.douglas@intel.com>
  */
 
-#define _GNU_SOURCE
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -32,7 +33,7 @@
 #include <getopt.h>
 #include <sys/prctl.h>
 #include <asm/unistd.h>
-
+#include <pthread.h>
 #include <curl/curl.h>
 
 #include <glib.h>
@@ -79,11 +80,12 @@ static struct option opts[] = {
 	{ 0, 0, NULL, 0 }
 };
 
+struct core_status core_status;
 
 static DBusConnection *bus;
 
 int pinged;
-int testmode;
+int testmode = 0;
 
 static void usage(const char *name)
 {
@@ -100,6 +102,8 @@ static DBusHandlerResult got_message(
 		DBusMessage *message,
 		void __unused *user_data)
 {
+	char *fullpath = NULL, *appfile = NULL;
+
 	if (dbus_message_is_signal(message,
 		"org.corewatcher.submit.ping", "ping")) {
 		pinged = 1;
@@ -108,42 +112,72 @@ static DBusHandlerResult got_message(
 
 	if (dbus_message_is_signal(message,
 		"org.corewatcher.submit.permission", "yes")) {
-		submit_queue();
+		dbus_message_get_args(message, NULL,
+				      DBUS_TYPE_STRING, &fullpath,
+				      DBUS_TYPE_STRING, &appfile,
+				      DBUS_TYPE_INVALID);
+		move_core(fullpath, "to-process");
+		pthread_mutex_lock(&core_status.asked_mtx);
+		g_hash_table_remove(core_status.asked_oops, fullpath);
+		pthread_mutex_unlock(&core_status.asked_mtx);
 		return DBUS_HANDLER_RESULT_HANDLED;
 	}
 	if (dbus_message_is_signal(message,
 		"org.corewatcher.submit.permission", "always")) {
-		submit_queue();
 		opted_in = 2;
+		dbus_message_get_args(message, NULL,
+				      DBUS_TYPE_STRING, &fullpath,
+				      DBUS_TYPE_STRING, &appfile,
+				      DBUS_TYPE_INVALID);
+		move_core(fullpath, "to-process");
+		pthread_mutex_lock(&core_status.asked_mtx);
+		g_hash_table_remove(core_status.asked_oops, fullpath);
+		pthread_mutex_unlock(&core_status.asked_mtx);
 		return DBUS_HANDLER_RESULT_HANDLED;
 	}
 	if (dbus_message_is_signal(message,
 		"org.corewatcher.submit.permission", "never")) {
-		clear_queue();
 		opted_in = 0;
+		dbus_message_get_args(message, NULL,
+				      DBUS_TYPE_STRING, &fullpath,
+				      DBUS_TYPE_STRING, &appfile,
+				      DBUS_TYPE_INVALID);
+		unlink(fullpath);
+		pthread_mutex_lock(&core_status.asked_mtx);
+		g_hash_table_remove(core_status.asked_oops, fullpath);
+		pthread_mutex_unlock(&core_status.asked_mtx);
 		return DBUS_HANDLER_RESULT_HANDLED;
 	}
 	if (dbus_message_is_signal(message,
 		"org.corewatcher.submit.permission", "no")) {
-		clear_queue();
+		dbus_message_get_args(message, NULL,
+				      DBUS_TYPE_STRING, &fullpath,
+				      DBUS_TYPE_STRING, &appfile,
+				      DBUS_TYPE_INVALID);
+		unlink(fullpath);
+		pthread_mutex_lock(&core_status.asked_mtx);
+		g_hash_table_remove(core_status.asked_oops, fullpath);
+		pthread_mutex_unlock(&core_status.asked_mtx);
 		return DBUS_HANDLER_RESULT_HANDLED;
 	}
 
 	return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
 }
 
-void dbus_ask_permission(char * detail_folder)
+void dbus_ask_permission(char *fullpath, char *appfile)
 {
 	DBusMessage *message;
-	if (!bus)
+	if (!bus || !fullpath || !appfile)
 		return;
+
 	message = dbus_message_new_signal("/org/corewatcher/submit/permission",
 			"org.corewatcher.submit.permission", "ask");
-	if (detail_folder) {
-		dbus_message_append_args(message,
-			DBUS_TYPE_STRING, &detail_folder,
-			DBUS_TYPE_INVALID);
-	}
+
+	dbus_message_append_args(message,
+				 DBUS_TYPE_STRING, &fullpath,
+				 DBUS_TYPE_STRING, &appfile,
+				 DBUS_TYPE_INVALID);
+
 	dbus_connection_send(bus, message, NULL);
 	dbus_message_unref(message);
 }
@@ -165,32 +199,21 @@ void dbus_say_thanks(char *url)
 	}
 }
 
-void dbus_say_found(struct oops *oops)
+void dbus_say_found(char *fullpath, char *appfile)
 {
 	DBusMessage *message;
-	char detail_filename[8192];
-	char *dbus_msg_arg;
-	char *pid;
 
-	if (!bus || !oops)
+	if (!bus || !fullpath || !appfile)
 		return;
-
-	if (!(pid = strstr(oops->filename, "."))) {
-		sprintf(detail_filename, "Unknown");
-	} else {
-		snprintf(detail_filename, 8192, "%s%s.txt", core_folder, ++pid);
-	}
 
 	message = dbus_message_new_signal("/org/corewatcher/submit/sent",
 			"org.corewatcher.submit.sent", "sent");
-	if ((asprintf(&dbus_msg_arg, "crash report located at: %s\n", detail_filename)) <= 0)
-		return;
-	dbus_message_append_args(message, DBUS_TYPE_STRING, &oops->application,
-	                                  DBUS_TYPE_STRING, &dbus_msg_arg, DBUS_TYPE_INVALID);
+	dbus_message_append_args(message, DBUS_TYPE_STRING, &fullpath,
+				 DBUS_TYPE_STRING, &appfile,
+				 DBUS_TYPE_INVALID);
 
 	dbus_connection_send(bus, message, NULL);
 	dbus_message_unref(message);
-	free(dbus_msg_arg);
 }
 
 int main(int argc, char**argv)
@@ -200,6 +223,16 @@ int main(int argc, char**argv)
 	int godaemon = 1;
 	int debug = 0;
 	int j = 0;
+
+	core_status.asked_oops = g_hash_table_new_full(g_str_hash, g_str_equal, free, free);
+	core_status.processing_oops = g_hash_table_new_full(g_str_hash, g_str_equal, free, NULL);
+	core_status.queued_oops = g_hash_table_new(g_str_hash, g_str_equal);
+	if (pthread_mutex_init(&core_status.asked_mtx, NULL))
+		return EXIT_FAILURE;
+	if (pthread_mutex_init(&core_status.processing_mtx, NULL))
+		return EXIT_FAILURE;
+	if (pthread_mutex_init(&core_status.queued_mtx, NULL))
+		return EXIT_FAILURE;
 
 /*
  * Signal the kernel that we're not timing critical
@@ -211,7 +244,8 @@ int main(int argc, char**argv)
 	if (syscall(__NR_ioprio_set, IOPRIO_WHO_PROCESS, getpid(),
 		    IOPRIO_IDLE_LOWEST) == -1)
 		perror("Can not set IO priority to lowest IDLE class");
-	nice(15);
+	if (nice(15) < 0)
+		perror("Can not set schedule priority");
 
 	read_config_file("/etc/corewatcher.conf");
 
@@ -293,6 +327,12 @@ int main(int argc, char**argv)
 		dbus_bus_remove_match(bus, "type='signal',interface='org.corewatcher.submit.permission'", &error);
 		for (j = 0; j < url_count; j++)
 			free(submit_url[j]);
+		g_hash_table_destroy(core_status.asked_oops);
+		g_hash_table_destroy(core_status.processing_oops);
+		g_hash_table_destroy(core_status.queued_oops);
+		pthread_mutex_destroy(&core_status.asked_mtx);
+		pthread_mutex_destroy(&core_status.processing_mtx);
+		pthread_mutex_destroy(&core_status.queued_mtx);
 		fprintf(stderr, "+ Exiting from testmode\n");
 		return EXIT_SUCCESS;
 	}
@@ -308,6 +348,13 @@ int main(int argc, char**argv)
 	g_main_loop_unref(loop);
 	for (j = 0; j < url_count; j++)
 		free(submit_url[j]);
+
+	g_hash_table_destroy(core_status.asked_oops);
+	g_hash_table_destroy(core_status.processing_oops);
+	g_hash_table_destroy(core_status.queued_oops);
+	pthread_mutex_destroy(&core_status.asked_mtx);
+	pthread_mutex_destroy(&core_status.processing_mtx);
+	pthread_mutex_destroy(&core_status.queued_mtx);
 
 	return EXIT_SUCCESS;
 }

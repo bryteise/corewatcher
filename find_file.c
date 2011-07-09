@@ -1,3 +1,4 @@
+#define _GNU_SOURCE
 /*
  * Core dump watcher & collector
  *
@@ -8,11 +9,11 @@
  * the Free Software Foundation; version 3 of the License.
  */
 
-#define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <glib.h>
 
 #ifndef PATH_MAX
 #define PATH_MAX 4096
@@ -22,14 +23,8 @@
 
 char *find_executable(char *fragment)
 {
-	/*
-	 * Added path_filename to avoid writing over
-	 * filename if this function is called twice.
-	 * (When meego-tablet-wrapper is used)
-	 */
-	char path_filename[PATH_MAX*2];
 	char *path, *c1, *c2;
-	static char filename[PATH_MAX*2];
+	char *filename = NULL;
 
 	fprintf(stderr, "+ Looking for %s\n", fragment);
 
@@ -38,7 +33,8 @@ char *find_executable(char *fragment)
 
 	/* Deal with absolute paths first */
 	if (!access(fragment, X_OK)) {
-		strcpy(filename, fragment);
+		if (!(filename = strdup(fragment)))
+			return NULL;
 		return filename;
 	}
 
@@ -46,12 +42,14 @@ char *find_executable(char *fragment)
 
 	c1 = path;
 	while (c1 && strlen(c1)>0) {
+		free(filename);
+		filename = NULL;
 		c2 = strchr(c1, ':');
 		if (c2) *c2=0;
-		sprintf(path_filename, "%s/%s", c1, fragment);
-		if (!access(path_filename, X_OK)) {
-			printf("Found %s\n", path_filename);
-			strcpy(filename, path_filename);
+		if(asprintf(&filename, "%s/%s", c1, fragment) == -1)
+			return NULL;
+		if (!access(filename, X_OK)) {
+			printf("+ Found %s\n", filename);
 			free(path);
 			return filename;
 		}
@@ -59,52 +57,68 @@ char *find_executable(char *fragment)
 		if (c2) c1++;
 	}
 	free(path);
+	free(filename);
 	return NULL;
 }
 
-char *find_coredump(char *corefile)
+char *find_coredump(char *fullpath)
 {
-	char *line, *c, *c2;
+	char *line = NULL, *line_len = NULL, *c = NULL, *c2 = NULL;
 	size_t size = 0;
 	FILE *file = NULL;
-	char command[PATH_MAX*2];
-	char *app = NULL;
+	char *app = NULL, *command = NULL;
 
-	sprintf(command, "eu-readelf -n %s", corefile);
-	file = popen(command, "r");
-	if (!file)
+	if (asprintf(&command, "eu-readelf -n %s", fullpath) == -1)
 		return NULL;
 
+	file = popen(command, "r");
+	if (!file) {
+		free(command);
+		return NULL;
+	}
+	free(command);
+
 	while (!feof(file)) {
-		if (getline(&line, &size, file) < 0)
+		if (getline(&line, &size, file) == -1)
 			break;
 
+		/* lines 4 chars and under won't have information we need */
+		if (size < 5)
+			continue;
+
+		line_len = line + size;
 		c = strstr(line,"psargs: ");
 		if (c) {
 			c += 8;
-			c2 = strchr(c, ' ');
-			if (c2)
-				*c2 = 0;
-			c2 = strchr(c, '\n');
-			if (c2)
-				*c2 = 0;
-			app = strdup(c);
+			if (c < line_len) {
+				c2 = strchr(c, ' ');
+				if (c2)
+					*c2 = 0;
+				c2 = strchr(c, '\n');
+				if (c2)
+					*c2 = 0;
+				app = strdup(c);
 
-			fprintf(stderr,"+ causing app: %s\n", app);
+				fprintf(stderr,"+ causing app: %s\n", app);
+			}
 		}
 
 		c = strstr(line, "EUID: ");
 		if (c) {
 			c += 6;
-			sscanf(c, "%i", &uid);
-			fprintf(stderr, "+ uid: %d\n", uid);
+			if (c < line_len) {
+				sscanf(c, "%i", &uid);
+				fprintf(stderr, "+ uid: %d\n", uid);
+			}
 		}
 
 		c = strstr(line, "cursig: ");
 		if (c) {
 			c += 8;
-			sscanf(c, "%i", &sig);
-			fprintf(stderr, "+ sig: %d\n", sig);
+			if (c < line_len) {
+				sscanf(c, "%i", &sig);
+				fprintf(stderr, "+ sig: %d\n", sig);
+			}
 		}
 	}
 

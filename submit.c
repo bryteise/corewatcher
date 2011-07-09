@@ -1,3 +1,4 @@
+#define _GNU_SOURCE
 /*
  * Copyright 2007, Intel Corporation
  *
@@ -20,101 +21,84 @@
  *
  * Authors:
  *	Arjan van de Ven <arjan@linux.intel.com>
+ *	William Douglas <william.douglas@intel.com>
  */
 
-#define _BSD_SOURCE
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <syslog.h>
 #include <sys/stat.h>
-
+#include <glib.h>
 #include <asm/unistd.h>
-
+#include <pthread.h>
 #include <proxy.h>
 #include <curl/curl.h>
 
 #include "corewatcher.h"
 
-extern int do_unlink;
-
+/* Always pick up the queued_mtx and then the
+   queued_bt_mtx, reverse for setting down */
+static pthread_mutex_t queued_bt_mtx = PTHREAD_MUTEX_INITIALIZER;
+static struct oops *queued_backtraces = NULL;
+static char result_url[4096];
 
 /*
- * we keep track of 16 checksums of the last submitted oopses; this allows us to
- * make sure we don't submit the same oops twice (this allows us to not have to do
- * really expensive things during non-destructive dmesg-scanning)
+ * Creates a duplicate of oops and adds it to
+ * the submit queue if the oops isn't already
+ * there.
  *
- * This also limits the number of oopses we'll submit per session;
- * it's important that this is bounded to avoid feedback loops
- * for the scenario where submitting an oopses causes a warning/oops
+ * Expects the queued_mtx to be held
+ * Picks up and sets down the queued_bt_mtx.
  */
-#define MAX_CHECKSUMS 16
-static unsigned int checksums[MAX_CHECKSUMS];
-static int submitted;
-
-/* we queue up oopses, and then submit in a batch.
- * This is useful to be able to cancel all submissions, in case
- * we later find our marker indicating we submitted everything so far already
- * previously.
- */
-static struct oops *queued_backtraces;
-static int newoops;
-static int unsubmittedoops;
-
-struct oops *get_oops_queue(void)
-{
-	return queued_backtraces;
-}
-
-static unsigned int checksum(char *ptr)
-{
-	unsigned int temp = 0;
-	unsigned char *c;
-	c = (unsigned char *) ptr;
-	while (c && *c) {
-		temp = (temp) + *c;
-		c++;
-	}
-	return temp;
-}
-
 void queue_backtrace(struct oops *oops)
 {
-	int i;
-	unsigned int sum;
-	struct oops *new;
+	struct oops *new = NULL;
 
-	if (submitted >= MAX_CHECKSUMS-1)
+	if (!oops || !oops->filename)
 		return;
+
 	/* first, check if we haven't already submitted the oops */
-	sum = checksum(oops->text);
-	for (i = 0; i < submitted; i++) {
-		if (checksums[i] == sum) {
-			printf("Match with oops %i (%d)\n", i, sum);
-			unlink(oops->filename);
-			return;
-		}
-	}
+
+	if (g_hash_table_lookup(core_status.queued_oops, oops->filename))
+		return;
 
 	new = malloc(sizeof(struct oops));
-	memset(new, 0, sizeof(struct oops));
+	pthread_mutex_lock(&queued_bt_mtx);
 	new->next = queued_backtraces;
-	new->checksum = sum;
-	new->application = strdup(oops->application);
-	new->text = strdup(oops->text);
+	if (oops->application)
+		new->application = strdup(oops->application);
+	else
+		new->application = NULL;
+	if (oops->text)
+		new->text = strdup(oops->text);
+	else
+		new->text = NULL;
 	new->filename = strdup(oops->filename);
-	new->detail_filename = strdup(oops->detail_filename);
+	if (oops->detail_filename)
+		new->detail_filename = strdup(oops->detail_filename);
+	else
+		new->detail_filename = NULL;
 	queued_backtraces = new;
-	unsubmittedoops = 1;
+	pthread_mutex_unlock(&queued_bt_mtx);
+	g_hash_table_insert(core_status.queued_oops, new->filename, new->filename);
 }
 
+/*
+ * For testmode to display all oops that would
+ * be submitted.
+ *
+ * Picks up and sets down the processing_mtx.
+ * Picks up and sets down the queued_bt_mtx.
+ * Expects the queued_mtx to be held.
+ */
 static void print_queue(void)
 {
-	struct oops *oops, *next;
-	struct oops *queue;
+	struct oops *oops = NULL, *next = NULL, *queue = NULL;
 	int count = 0;
 
+	pthread_mutex_lock(&queued_bt_mtx);
 	queue = queued_backtraces;
 	queued_backtraces = NULL;
 	barrier();
@@ -126,6 +110,12 @@ static void print_queue(void)
 		oops = next;
 		count++;
 	}
+	pthread_mutex_unlock(&queued_bt_mtx);
+	pthread_mutex_lock(&core_status.processing_mtx);
+	g_hash_table_remove_all(core_status.processing_oops);
+	pthread_mutex_unlock(&core_status.processing_mtx);
+
+	g_hash_table_remove_all(core_status.queued_oops);
 }
 
 static void write_logfile(int count, char *wsubmit_url)
@@ -135,18 +125,23 @@ static void write_logfile(int count, char *wsubmit_url)
 	closelog();
 }
 
-char result_url[4096];
-
-size_t writefunction( void *ptr, size_t size, size_t nmemb, void __attribute((unused)) *stream)
+static size_t writefunction( void *ptr, size_t size, size_t nmemb, void __attribute((unused)) *stream)
 {
-	char *c, *c1, *c2;
-	c = malloc(size*nmemb + 1);
-	memset(c, 0, size*nmemb + 1);
-	memcpy(c, ptr, size*nmemb);
+	char *c = NULL, *c1 = NULL, *c2 = NULL;
+	c = malloc(size * nmemb + 1);
+	if (!c)
+		return -1;
+
+	memset(c, 0, size * nmemb + 1);
+	memcpy(c, ptr, size * nmemb);
 	printf("received %s \n", c);
 	c1 = strstr(c, "201 ");
 	if (c1) {
-		c1+=4;
+		c1 += 4;
+		if (c1 >= c + strlen(c)) {
+			free(c);
+			return -1;
+		}
 		c2 = strchr(c1, '\n');
 		if (c2) *c2 = 0;
 		strncpy(result_url, c1, 4095);
@@ -155,11 +150,57 @@ size_t writefunction( void *ptr, size_t size, size_t nmemb, void __attribute((un
 	return size * nmemb;
 }
 
-void submit_queue_with_url(struct oops *queue, char *wsubmit_url, char *proxy)
+/*
+ * Replace the extension of a file.
+ * TODO: make search from end of string
+ */
+char *replace_name(char *filename, char *replace, char *new)
 {
-	int result;
-	struct oops *oops;
-	CURL *handle;
+	char *newfile = NULL, *oldfile, *c = NULL;
+	int r = 0;
+
+	if (!filename || !replace || !new)
+		return NULL;
+
+	oldfile = strdup(filename);
+	if (!oldfile)
+		return NULL;
+
+	c = strstr(oldfile, replace);
+	if (!c) {
+		free(oldfile);
+		return NULL;
+	}
+
+	oldfile[strlen(oldfile) - strlen(c)] = '\0';
+
+	r = asprintf(&newfile, "%s%s",  oldfile, new);
+	if(r == -1) {
+		free(oldfile);
+		return NULL;
+	} else if (((unsigned int)r) != strlen(oldfile) + strlen(new)) {
+		free(oldfile);
+		free(newfile);
+		return NULL;
+	}
+
+	free(oldfile);
+
+	return newfile;
+}
+
+/*
+ * Attempts to send the oops queue to the submission url wsubmit_url,
+ * will use proxy if configured.
+ *
+ * Picks up and sets down the processing_mtx.
+ * Expects queued_mtx to be held.
+ */
+static void submit_queue_with_url(struct oops *queue, char *wsubmit_url, char *proxy)
+{
+	int result = 0;
+	struct oops *oops = NULL;
+	CURL *handle = NULL;
 	int count = 0;
 
 	handle = curl_easy_init();
@@ -171,17 +212,6 @@ void submit_queue_with_url(struct oops *queue, char *wsubmit_url, char *proxy)
 	while (oops) {
 		struct curl_httppost *post = NULL;
 		struct curl_httppost *last = NULL;
-		unsigned int sum;
-		int i;
-
-		sum = oops->checksum;
-		for (i = 0; i < submitted; i++) {
-			if (checksums[i] == sum) {
-				printf("Match with oops %i (%d)\n", i, sum);
-				unlink(oops->filename);
-				goto dup;
-			}
-		}
 
 		/* set up the POST data */
 		curl_formadd(&post, &last,
@@ -200,36 +230,25 @@ void submit_queue_with_url(struct oops *queue, char *wsubmit_url, char *proxy)
 		curl_formfree(post);
 
 		if (!result) {
-			char newfile[8192];
-			char oldfile[8192];
-			char *c;
-
-			memset(newfile, 0, sizeof(newfile));
-			memset(oldfile, 0, sizeof(oldfile));
-
-			strncpy(oldfile, oops->filename, 8192);
-			oldfile[8191] = '\0';
-			c = strstr(oldfile, ".processed");
-			if (c) {
-				oldfile[strlen(oldfile) - strlen(c)] = '\0';
-			}
-
-			sprintf(newfile,"%s.submitted",  oldfile);
-
-			if (do_unlink) {
+			char *nf = NULL;
+			if (do_unlink || (!(nf = replace_name(oops->filename, ".processed", ".submitted")))) {
 				unlink(oops->detail_filename);
 				unlink(oops->filename);
+			} else {
+				rename(oops->filename, nf);
+				pthread_mutex_lock(&core_status.processing_mtx);
+				remove_pid_from_hash(oops->filename, core_status.processing_oops);
+				pthread_mutex_unlock(&core_status.processing_mtx);
+				free(nf);
 			}
-			else
-				rename(oops->filename, newfile);
 
-			checksums[submitted++] = oops->checksum;
+			g_hash_table_remove(core_status.queued_oops, oops->filename);
 			dbus_say_thanks(result_url);
-		} else
+			count++;
+		} else {
+			g_hash_table_remove(core_status.queued_oops, oops->filename);
 			queue_backtrace(oops);
-
-		count++;
-	dup:
+		}
 		oops = oops->next;
 	}
 
@@ -237,35 +256,43 @@ void submit_queue_with_url(struct oops *queue, char *wsubmit_url, char *proxy)
 
 	if (count && !testmode)
 		write_logfile(count, wsubmit_url);
-
-	/*
-	 * If we've reached the maximum count, we'll exit the program,
-	 * the program won't do any useful work anymore going forward.
-	 */
-	if (submitted >= MAX_CHECKSUMS-1) {
-		exit(EXIT_SUCCESS);
-	}
 }
 
+/*
+ * Entry function for submitting oops data.
+ *
+ * Picks up and sets down the queued_mtx.
+ * Picks up and sets down the queued_bt_mtx.
+ */
 void submit_queue(void)
 {
-	int i, n, submitted = 0;
-	struct oops *queue, *oops, *next;
-	CURL *handle;
-	pxProxyFactory *pf;
+	int i = 0, n = 0, submit = 0;
+	struct oops *queue = NULL, *oops = NULL, *next = NULL;
+	CURL *handle = NULL;
+	pxProxyFactory *pf = NULL;
 	char **proxies = NULL;
 	char *proxy = NULL;
+
+	pthread_mutex_lock(&core_status.queued_mtx);
+
+	if (!g_hash_table_size(core_status.queued_oops)) {
+		pthread_mutex_unlock(&core_status.queued_mtx);
+		return;
+	}
 
 	memset(result_url, 0, 4096);
 
 	if (testmode) {
 		print_queue();
+		pthread_mutex_unlock(&core_status.queued_mtx);
 		return;
 	}
 
+	pthread_mutex_lock(&queued_bt_mtx);
 	queue = queued_backtraces;
 	queued_backtraces = NULL;
 	barrier();
+	pthread_mutex_unlock(&queued_bt_mtx);
 
 	pf = px_proxy_factory_new();
 	handle = curl_easy_init();
@@ -284,7 +311,10 @@ void submit_queue(void)
 		}
 		if (!curl_easy_perform(handle)) {
 			submit_queue_with_url(queue, submit_url[i], proxy);
-			submitted = 1;
+			submit = 1;
+			for (n = 0; proxies[n]; n++)
+				free(proxies[n]);
+			free(proxies);
 			break;
 		}
 		for (n = 0; proxies[n]; n++)
@@ -294,44 +324,20 @@ void submit_queue(void)
 
 	px_proxy_factory_free(pf);
 
-	if (submitted) {
+	if (submit) {
 		oops = queue;
 		while (oops) {
 			next = oops->next;
 			FREE_OOPS(oops);
 			oops = next;
 		}
-	} else
+	} else {
+		pthread_mutex_lock(&queued_bt_mtx);
 		queued_backtraces = queue;
+		pthread_mutex_unlock(&queued_bt_mtx);
+	}
 
 	curl_easy_cleanup(handle);
-}
-
-void clear_queue(void)
-{
-	struct oops *oops, *next;
-	struct oops *queue;
-
-	queue = queued_backtraces;
-	queued_backtraces = NULL;
-	barrier();
-	oops = queue;
-	while (oops) {
-		next = oops->next;
-		FREE_OOPS(oops);
-		oops = next;
-	}
-	write_logfile(0, "Unknown");
-}
-
-void ask_permission(char *detail_folder)
-{
-	if (!newoops && !pinged && !unsubmittedoops)
-		return;
-	pinged = 0;
-	newoops = 0;
-	unsubmittedoops = 0;
-	if (queued_backtraces) {
-		dbus_ask_permission(detail_folder);
-	}
+	curl_global_cleanup();
+	pthread_mutex_unlock(&core_status.queued_mtx);
 }

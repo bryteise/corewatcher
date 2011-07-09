@@ -1,0 +1,182 @@
+{
+	get_build_new
+	Memcheck:Cond
+	obj:/lib/libc-2.11.90.so
+	fun:get_build
+	fun:build_core_header
+	fun:extract_core
+	fun:process_common
+	fun:process_new
+	obj:/lib/libpthread-2.11.90.so
+	fun:clone
+}
+
+{
+	get_build_old
+	Memcheck:Cond
+	obj:/lib/libc-2.11.90.so
+	fun:get_build
+	fun:build_core_header
+	fun:extract_core
+	fun:process_common
+	fun:process_old
+	obj:/lib/libpthread-2.11.90.so
+	fun:clone
+}
+
+{
+	curl_send
+	Memcheck:Cond
+	obj:/lib/libc-2.11.90.so
+	obj:/usr/lib/libcurl.so.4.2.0
+	fun:Curl_connect
+	obj:/usr/lib/libcurl.so.4.2.0
+	fun:curl_easy_perform
+	fun:submit_queue
+	fun:scan_dmesg
+	fun:main
+}
+
+{
+	curl_send2
+	Memcheck:Cond
+	obj:/lib/libc-2.11.90.so
+	obj:/usr/lib/libcurl.so.4.2.0
+	fun:Curl_connect
+	obj:/usr/lib/libcurl.so.4.2.0
+	fun:curl_easy_perform
+	fun:submit_queue_with_url
+	fun:submit_queue
+	fun:scan_dmesg
+	fun:main
+}
+
+{
+	curl_send3
+	Memcheck:Cond
+	obj:/lib/libc-2.11.90.so
+	fun:Curl_http
+	fun:Curl_do
+	obj:/usr/lib/libcurl.so.4.2.0
+	fun:curl_easy_perform
+	fun:submit_queue
+	fun:scan_dmesg
+	fun:main
+}
+
+{
+	curl_timeout
+	Memcheck:Cond
+	obj:/lib/libc-2.11.90.so
+	obj:/lib/libc-2.11.90.so
+	fun:getaddrinfo
+	fun:Curl_getaddrinfo_ex
+	fun:Curl_getaddrinfo
+	fun:Curl_resolv
+	fun:Curl_resolv_timeout
+	obj:/usr/lib/libcurl.so.4.2.0
+	fun:Curl_connect
+	obj:/usr/lib/libcurl.so.4.2.0
+	fun:curl_easy_perform
+	fun:submit_queue
+}
+
+{
+	curl_timeout2
+	Memcheck:Cond
+	obj:/lib/libc-2.11.90.so
+	obj:/usr/lib/libcurl.so.4.2.0
+	fun:Curl_connect
+	obj:/usr/lib/libcurl.so.4.2.0
+	fun:curl_easy_perform
+	fun:submit_queue
+	obj:/lib/libglib-2.0.so.0.2800.6
+	fun:g_main_context_dispatch
+	obj:/lib/libglib-2.0.so.0.2800.6
+	fun:g_main_loop_run
+	fun:main
+}
+
+{
+	curl_timeout3
+	Memcheck:Cond
+	obj:/lib/libc-2.11.90.so
+	obj:/usr/lib/libcurl.so.4.2.0
+	fun:Curl_connect
+	obj:/usr/lib/libcurl.so.4.2.0
+	fun:curl_easy_perform
+	fun:submit_queue
+	fun:scan_dmesg
+	obj:/lib/libglib-2.0.so.0.2800.6
+	fun:g_main_context_dispatch
+	obj:/lib/libglib-2.0.so.0.2800.6
+	fun:g_main_loop_run
+	fun:main
+}
+
+{
+	curl_conn_found
+	Memcheck:Cond
+	obj:/lib/libc-2.11.90.so
+	fun:Curl_http
+	fun:Curl_do
+	obj:/usr/lib/libcurl.so.4.2.0
+	fun:curl_easy_perform
+	fun:submit_queue
+	fun:scan_dmesg
+	obj:/lib/libglib-2.0.so.0.2800.6
+	fun:g_main_context_dispatch
+	obj:/lib/libglib-2.0.so.0.2800.6
+	fun:g_main_loop_run
+	fun:main
+}
+
+{
+	curl_timeout_leak
+	Memcheck:Leak
+	fun:malloc
+	obj:/lib/libc-2.11.90.so
+	obj:/lib/libc-2.11.90.so
+	fun:getaddrinfo
+	fun:Curl_getaddrinfo_ex
+	fun:Curl_getaddrinfo
+	fun:Curl_resolv
+	fun:Curl_resolv_timeout
+	obj:/usr/lib/libcurl.so.4.2.0
+	fun:Curl_connect
+	obj:/usr/lib/libcurl.so.4.2.0
+	fun:curl_easy_perform
+}
+
+{
+	thread_create_process
+	Memcheck:Leak
+	fun:calloc
+	fun:_dl_allocate_tls
+	fun:pthread_create
+	fun:process_corefile
+	fun:scan_dmesg
+	fun:main
+}
+
+{
+	thread_create_reprocess
+	Memcheck:Leak
+	fun:calloc
+	fun:_dl_allocate_tls
+	fun:pthread_create
+	fun:reprocess_corefile
+	fun:scan_dmesg
+	fun:main
+}
+
+{
+	thread_create_reprocess
+	Memcheck:Leak
+	fun:calloc
+	fun:_dl_allocate_tls
+	fun:pthread_create
+	fun:reprocess_corefile
+	fun:scan_dmesg
+	fun:main
+}
