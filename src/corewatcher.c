@@ -43,13 +43,6 @@
 
 
 
-/*
- * Debian etch has an ancient glib2 library, work around
- */
-#if !GLIB_CHECK_VERSION(2, 14, 0)
-#define g_timeout_add_seconds(a, b, c) g_timeout_add((a)*1000, b, c)
-#endif
-
 #define IOPRIO_WHO_PROCESS 1
 #define IOPRIO_CLASS_RT 1
 #define IOPRIO_CLASS_IDLE 3
