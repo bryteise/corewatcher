@@ -74,7 +74,7 @@ extern char *replace_name(char *filename, char *replace, char *new);
 
 /* coredump.c */
 extern int move_core(char *fullpath, char *ext);
-extern int scan_dmesg(void * unused);
+extern int scan_corefolders(void * unused);
 extern char *strip_directories(char *fullpath);
 extern char *get_core_filename(char *filename, char *ext);
 extern void remove_pid_from_hash(char *fullpath, GHashTable *ht);

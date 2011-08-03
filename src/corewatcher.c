@@ -307,7 +307,7 @@ int main(int argc, char**argv)
 		sleep(20);
 
 	/* we scan dmesg before /var/log/messages; dmesg is a more accurate source normally */
-	scan_dmesg(NULL);
+	scan_corefolders(NULL);
 	/* during boot... don't go too fast and slow the system down */
 
 	if (testmode) {
@@ -328,7 +328,7 @@ int main(int argc, char**argv)
 
 	/* now, start polling for oopses to occur */
 
-	g_timeout_add_seconds(10, scan_dmesg, NULL);
+	g_timeout_add_seconds(10, scan_corefolders, NULL);
 
 	g_main_loop_run(loop);
 	dbus_bus_remove_match(bus, "type='signal',interface='org.corewatcher.submit.ping'", &error);

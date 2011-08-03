@@ -1160,7 +1160,7 @@ static void reprocess_corefile(char *fullpath)
 		fprintf(stderr, "Couldn't start up gdb extract core thread\n");
 }
 
-int scan_dmesg(void __unused *unused)
+int scan_corefolders(void __unused *unused)
 {
 	DIR *dir = NULL;
 	struct dirent *entry = NULL;
