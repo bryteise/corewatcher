@@ -78,36 +78,30 @@ extern int scan_dmesg(void * unused);
 extern char *strip_directories(char *fullpath);
 extern char *get_core_filename(char *filename, char *ext);
 extern void remove_pid_from_hash(char *fullpath, GHashTable *ht);
+extern int uid;
+extern int sig;
 
 /* configfile.c */
 extern void read_config_file(char *filename);
+extern int opted_in;
+extern int allow_distro_to_pass_on;
+extern char *submit_url[MAX_URLS];
+extern char *build_release;
+extern char *core_folder;
+extern int url_count;
+extern int do_unlink;
+extern int private_report;
 
 /* corewatcher.c */
 extern void dbus_ask_permission(char *fullpath, char *appfile);
 extern void dbus_say_thanks(char *url);
 extern void dbus_say_found(char *fullpath, char *appfile);
+extern int testmode;
+extern int pinged;
+extern struct core_status core_status;
 
 /* find_file.c */
 extern char *find_executable(char *fragment);
 extern char *find_coredump(char *fullpath);
-
-/* config data */
-extern int opted_in;
-extern int allow_distro_to_pass_on;
-extern char *submit_url[MAX_URLS];
-extern int url_count;
-extern int do_unlink;
-extern char *build_release;
-extern char *core_folder;
-extern int private_report;
-extern int testmode;
-
-extern int pinged;
-
-extern struct core_status core_status;
-
-extern int uid;
-extern int sig;
-
 
 #endif
