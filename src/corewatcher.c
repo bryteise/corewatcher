@@ -42,13 +42,12 @@
 #include <dbus/dbus-glib-lowlevel.h>
 
 
-
+/* see linux kernel doc Documentation/block/ioprio.txt */
 #define IOPRIO_WHO_PROCESS 1
-#define IOPRIO_CLASS_RT 1
 #define IOPRIO_CLASS_IDLE 3
 #define IOPRIO_CLASS_SHIFT 13
-#define IOPRIO_IDLE_LOWEST (7 |  (IOPRIO_CLASS_IDLE << IOPRIO_CLASS_SHIFT))
-#define IOPRIO_RT_LOWEST (7 |  (IOPRIO_CLASS_RT << IOPRIO_CLASS_SHIFT))
+#define IOPRIO_CLASS_DATA 7
+#define IOPRIO_IDLE_LOWEST (IOPRIO_CLASS_DATA |  (IOPRIO_CLASS_IDLE << IOPRIO_CLASS_SHIFT))
 
 #include "corewatcher.h"
 
