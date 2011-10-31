@@ -1160,11 +1160,92 @@ static void reprocess_corefile(char *fullpath)
 		fprintf(stderr, "Couldn't start up gdb extract core thread\n");
 }
 
+static char *get_trace_file(char *fullpath)
+{
+	char *trace_file = NULL, *c = NULL;
+	struct stat st;
+	int r;
+
+	c = strstr(fullpath, ".");
+	if (!c)
+		return NULL;
+
+	r = asprintf(&trace_file, "%s%s", "/tmp/trace", c);
+	if (r == -1)
+		return NULL;
+	if (stat(trace_file, &st)) {
+		free(trace_file);
+		return NULL;
+	}
+	return trace_file;
+}
+
+static void move_files(char **fullpath, char **trace_file)
+{
+	char *ofp = NULL, *otf = NULL, *c = NULL;
+	struct stat st;
+	int r;
+
+	ofp = strdup(*fullpath);
+	if (!ofp)
+		return;
+
+	otf = strdup(*trace_file);
+	if (!otf) {
+		free(ofp);
+		return;
+	}
+
+	free(*fullpath);
+	free(*trace_file);
+
+	c = strrchr(ofp, '/') + 1;
+
+	if (!c)
+		goto revert;
+
+	r = asprintf(fullpath, "/tmp/old-%s", c);
+	if (r == -1) {
+		goto revert;
+	}
+
+	c = NULL;
+	c = strrchr(otf, '/') + 1;
+
+	if (!c) {
+		free(*fullpath);
+		goto revert;
+	}
+
+	r = asprintf(trace_file, "/tmp/old-%s", c);
+	if (r == -1) {
+		free(*fullpath);
+		goto revert;
+	}
+
+	(void)rename(ofp, *fullpath);
+	(void)rename(otf, *trace_file);
+
+	free(ofp);
+	free(otf);
+
+	return;
+
+revert:
+	*fullpath = ofp;
+	*trace_file = otf;
+}
+
+static void submit_files(char *fullpath, char *trace_file)
+{
+	(void)system("openvt -s submit_core");
+}
+
 int scan_corefolders(void __unused *unused)
 {
 	DIR *dir = NULL;
 	struct dirent *entry = NULL;
-	char *fullpath = NULL, *appfile = NULL;
+	char *fullpath = NULL, *appfile = NULL, *trace_file = NULL;
 	char tmp_folder[] = "/tmp/";
 	int r = 0;
 
@@ -1193,61 +1274,17 @@ int scan_corefolders(void __unused *unused)
 		} else if (((unsigned int)r) != strlen(tmp_folder) + strlen(entry->d_name)) {
 			continue;
 		}
-		/* already found, waiting for response from user */
-		pthread_mutex_lock(&core_status.asked_mtx);
-		if (g_hash_table_lookup(core_status.asked_oops, fullpath)) {
-			pthread_mutex_unlock(&core_status.asked_mtx);
-			continue;
-		}
-		pthread_mutex_unlock(&core_status.asked_mtx);
-		fprintf(stderr, "+ Looking at %s\n", fullpath);
-		appfile = get_appfile(fullpath);
+		trace_file = get_trace_file(fullpath);
 
-		if (!appfile) {
+		if (!trace_file) {
 			unlink(fullpath);
 		} else {
-			free(appfile);
-			appfile = NULL;
+			move_files(&fullpath, &trace_file);
+			submit_files(fullpath, trace_file);
+			exit(0);
 		}
 	}
 	closedir(dir);
-
-	if (!core_folder)
-		return 1;
-	dir = opendir(core_folder);
-	if (!dir)
-		return 1;
-
-	fprintf(stderr, "+ scanning %s...\n", core_folder);
-	while(1) {
-		free(fullpath);
-		fullpath = NULL;
-
-		entry = readdir(dir);
-		if (!entry || !entry->d_name)
-			break;
-		if (entry->d_name[0] == '.')
-			continue;
-		if (!strstr(entry->d_name, "process"))
-			continue;
-
-		r = asprintf(&fullpath, "%s%s", core_folder, entry->d_name);
-		if (r == -1) {
-			fullpath = NULL;
-			continue;
-		} else if (((unsigned int)r) != strlen(core_folder) + strlen(entry->d_name)) {
-			continue;
-		}
-
-		fprintf(stderr, "+ Looking at %s\n", fullpath);
-		if (strstr(fullpath, "to-process"))
-			process_corefile(fullpath);
-		else
-			reprocess_corefile(fullpath);
-	}
-	closedir(dir);
-
-	submit_queue();
 
 	return 1;
 }
