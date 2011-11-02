@@ -36,6 +36,12 @@
 #include <pthread.h>
 #include <curl/curl.h>
 #include <limits.h>
+#include <sys/poll.h>
+#include <sys/epoll.h>
+#include <sys/signalfd.h>
+#include <sys/file.h>
+#include <fcntl.h>
+#include <errno.h>
 
 #include <glib.h>
 #include <dbus/dbus.h>
@@ -62,6 +68,8 @@ static struct option opts[] = {
 	{ "help",     0, NULL, 'h' },
 	{ 0, 0, NULL, 0 }
 };
+
+static char corewatcher_mon_file[] = "/tmp/corewatcher";
 
 struct core_status core_status;
 
@@ -201,9 +209,96 @@ void dbus_say_found(char *fullpath, char *appfile)
 	dbus_message_unref(message);
 }
 
+static int server_init(void) {
+	int r = -1;
+	unsigned i;
+	struct epoll_event ev;
+	sigset_t mask;
+	int epoll_fd;
+	int corewatcher_fd;
+	mode_t prev_mode;
+
+	epoll_fd = epoll_create1(EPOLL_CLOEXEC);
+	if (epoll_fd < 0) {
+		r = -errno;
+		goto fail;
+	};
+
+	prev_mode = umask(0);
+
+	corewatcher_fd = open(corewatcher_mon_file, O_RDONLY | O_CREAT,
+			      S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
+	if (corewatcher_fd == -1) {
+		r = -errno;
+		goto fail;
+	}
+
+	ev.events = EPOLLIN;
+
+	r = epoll_ctl(epoll_fd, EPOLL_CTL_ADD, corewatcher_fd, &ev);
+	if (r < 0) {
+		r = -errno;
+		goto fail;
+	}
+
+	return epoll_fd;
+
+fail:
+	return r;
+}
+
+static int process_event(struct epoll_event *event)
+{
+	int r;
+	int corewatcher_fd;
+	char buf[PATH_MAX];
+	char *l, *n;
+	struct stat st;
+
+	corewatcher_fd = open(corewatcher_mon_file, O_RDONLY);
+	if (corewatcher_fd < 0) {
+		r = -errno;
+		goto fail;
+	}
+
+	if (flock(corewatcher_fd, LOCK_EX)) {
+		r = -errno;
+		goto fail;
+	}
+
+	r = read(corewatcher_fd, buf, PATH_MAX-1);
+	if (r < 0) {
+		r = -errno;
+		goto fail;
+	} else if (r == 0) {
+		goto fail;
+	}
+
+	n = strchr(buf, '\0');
+	if (n != &buf[r]) {
+		/* embedded nul? eww bail */
+		r = -1;
+		goto fail;
+	}
+
+	l = strchr(buf, '\n');
+	if (l)
+		l = '\0';
+
+	r = scan_corefolders(buf);
+
+fail:
+	if (corewatcher_fd >= 0) {
+		(void)flock(corewatcher_fd, LOCK_UN);
+		(void)close(corewatcher_fd);
+	}
+
+	return r;
+}
+
 int main(int argc, char**argv)
 {
-	int core_fd;
+	int epoll_fd;
 	DBusError error;
 	int godaemon = 1;
 	int debug = 0;
@@ -214,11 +309,11 @@ int main(int argc, char**argv)
 	core_status.processing_oops = g_hash_table_new_full(g_str_hash, g_str_equal, free, NULL);
 	core_status.queued_oops = g_hash_table_new(g_str_hash, g_str_equal);
 	if (pthread_mutex_init(&core_status.asked_mtx, NULL))
-		return EXIT_FAILURE;
+		goto fail;
 	if (pthread_mutex_init(&core_status.processing_mtx, NULL))
-		return EXIT_FAILURE;
+		goto fail;
 	if (pthread_mutex_init(&core_status.queued_mtx, NULL))
-		return EXIT_FAILURE;
+		goto fail;
 
 /*
  * Signal the kernel that we're not timing critical
@@ -255,7 +350,7 @@ int main(int argc, char**argv)
 			if (!fname) {
 				fprintf(stderr,
 					"+ Couldn't allocate memory for file argument");
-				return EXIT_FAILURE;
+				goto fail;
 			}
 			fprintf(stderr, "+ Using file /tmp/%s\n", optarg);
 			break;
@@ -298,7 +393,7 @@ int main(int argc, char**argv)
 
 	if (!fname && godaemon && daemon(0, 0)) {
 		fprintf(stderr, "corewatcher failed to daemonize.. exiting \n");
-		return EXIT_FAILURE;
+		goto fail;
 	}
 
 	dbus_error_init(&error);
@@ -313,12 +408,10 @@ int main(int argc, char**argv)
 	if (!debug)
 		sleep(20);
 
-	if (scan_corefolders(fname))
-		return EXIT_FAILURE;
-
 	/* during boot... don't go too fast and slow the system down */
 
 	if (testmode) {
+		(void)scan_corefolders(fname);
 		dbus_bus_remove_match(bus, "type='signal',interface='org.corewatcher.submit.ping'", &error);
 		dbus_bus_remove_match(bus, "type='signal',interface='org.corewatcher.submit.permission'", &error);
 		for (j = 0; j < url_count; j++)
@@ -333,7 +426,36 @@ int main(int argc, char**argv)
 		return EXIT_SUCCESS;
 	}
 
+	if (fname)
+		return scan_corefolders(fname);
+
 	/* now, start polling for oopses to occur */
+	epoll_fd = server_init();
+	if (epoll_fd < 0)
+		goto fail;
+
+	for (;;) {
+		struct epoll_event event;
+		int k;
+
+		if ((k = epoll_wait(epoll_fd, &event, 1, -1)) < 0) {
+
+			if (errno == EINTR)
+				continue;
+
+			goto fail;
+		}
+
+		if (k <= 0)
+			break;
+
+		if ((k = process_event(&event)) < 0) {
+			goto fail;
+		}
+
+		if (k == 0)
+			break;
+	}
 
 	dbus_bus_remove_match(bus, "type='signal',interface='org.corewatcher.submit.ping'", &error);
 	dbus_bus_remove_match(bus, "type='signal',interface='org.corewatcher.submit.permission'", &error);
@@ -349,4 +471,7 @@ int main(int argc, char**argv)
 	pthread_mutex_destroy(&core_status.queued_mtx);
 
 	return EXIT_SUCCESS;
+
+fail:
+	return EXIT_FAILURE;
 }
