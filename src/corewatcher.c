@@ -232,7 +232,7 @@ int main(int argc, char**argv)
 		int c;
 		int i;
 
-		c = getopt_long(argc, argv, "adnh", opts, &i);
+		c = getopt_long(argc, argv, "adnth", opts, &i);
 		if (c == -1)
 			break;
 
@@ -251,6 +251,7 @@ int main(int argc, char**argv)
 			break;
 		case 't':
 			fprintf(stderr, "+ Test mode enabled: not sending anything\n");
+			testmode = 1;
 			break;
 		case 'h':
 			usage(argv[0]);
