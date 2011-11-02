@@ -1,0 +1,12 @@
+#!/bin/bash
+
+read -p "Submit crash? (Y/n): " -r -s -e -n 1 input
+
+if [ "$input" == 'n' -o "$input" == 'N' ]; then
+    echo "Done."
+    exit
+fi
+
+echo "Submitting..."
+echo "Done."
+
