@@ -1289,10 +1289,10 @@ int scan_corefolders(char *fname)
 	int r = 0;
 	struct stat st;
 
-	if (!trace_file)
+	if (!fname)
 		return -1;
 
-	(void)fprintf(stderr, "+ using %s...\n", trace_file);
+	(void)fprintf(stderr, "+ using %s...\n", fname);
 
 	r = asprintf(&trace_file, "%s%s", tmp_folder, fname);
 	if (r == -1)
