@@ -199,7 +199,7 @@ void dbus_say_found(char *fullpath, char *appfile)
 
 int main(int argc, char**argv)
 {
-	GMainLoop *loop;
+	int core_fd;
 	DBusError error;
 	int godaemon = 1;
 	int debug = 0;
@@ -227,8 +227,6 @@ int main(int argc, char**argv)
 		perror("Can not set IO priority to lowest IDLE class");
 	if (nice(15) < 0)
 		perror("Can not set schedule priority");
-
-	read_config_file("/etc/corewatcher.conf");
 
 	while (1) {
 		int c;
@@ -283,9 +281,7 @@ int main(int argc, char**argv)
 		fprintf(stderr, "corewatcher failed to daemonize.. exiting \n");
 		return EXIT_FAILURE;
 	}
-	sched_yield();
 
-	loop = g_main_loop_new(NULL, FALSE);
 	dbus_error_init(&error);
 	bus = dbus_bus_get(DBUS_BUS_SYSTEM, &error);
 	if (bus) {
@@ -298,12 +294,10 @@ int main(int argc, char**argv)
 	if (!debug)
 		sleep(20);
 
-	/* we scan dmesg before /var/log/messages; dmesg is a more accurate source normally */
 	scan_corefolders(NULL);
 	/* during boot... don't go too fast and slow the system down */
 
 	if (testmode) {
-		g_main_loop_unref(loop);
 		dbus_bus_remove_match(bus, "type='signal',interface='org.corewatcher.submit.ping'", &error);
 		dbus_bus_remove_match(bus, "type='signal',interface='org.corewatcher.submit.permission'", &error);
 		for (j = 0; j < url_count; j++)
@@ -320,13 +314,9 @@ int main(int argc, char**argv)
 
 	/* now, start polling for oopses to occur */
 
-	g_timeout_add_seconds(10, scan_corefolders, NULL);
-
-	g_main_loop_run(loop);
 	dbus_bus_remove_match(bus, "type='signal',interface='org.corewatcher.submit.ping'", &error);
 	dbus_bus_remove_match(bus, "type='signal',interface='org.corewatcher.submit.permission'", &error);
 
-	g_main_loop_unref(loop);
 	for (j = 0; j < url_count; j++)
 		free(submit_url[j]);
 
