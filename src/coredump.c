@@ -1160,51 +1160,51 @@ static void reprocess_corefile(char *fullpath)
 		fprintf(stderr, "Couldn't start up gdb extract core thread\n");
 }
 
-static char *get_trace_file(char *fullpath)
+static char *get_core_file(char *trace_file)
 {
-	char *trace_file = NULL, *c = NULL;
+	char *core_file = NULL, *c = NULL;
 	struct stat st;
 	int r;
 
-	c = strstr(fullpath, ".");
+	c = strstr(trace_file, ".");
 	if (!c)
 		return NULL;
 
-	r = asprintf(&trace_file, "%s%s", "/tmp/trace", c);
+	r = asprintf(&core_file, "%s%s", "/tmp/core", c);
 	if (r == -1)
 		return NULL;
-	if (stat(trace_file, &st)) {
-		free(trace_file);
+	if (stat(core_file, &st)) {
+		free(core_file);
 		return NULL;
 	}
-	return trace_file;
+	return core_file;
 }
 
-static void move_files(char **fullpath, char **trace_file)
+static void move_files(char **core_file, char **trace_file)
 {
-	char *ofp = NULL, *otf = NULL, *c = NULL;
+	char *ocp = NULL, *otf = NULL, *c = NULL;
 	struct stat st;
 	int r;
 
-	ofp = strdup(*fullpath);
-	if (!ofp)
+	ocp = strdup(*core_file);
+	if (!ocp)
 		return;
 
 	otf = strdup(*trace_file);
 	if (!otf) {
-		free(ofp);
+		free(ocp);
 		return;
 	}
 
-	free(*fullpath);
+	free(*core_file);
 	free(*trace_file);
 
-	c = strrchr(ofp, '/') + 1;
+	c = strrchr(ocp, '/') + 1;
 
 	if (!c)
 		goto revert;
 
-	r = asprintf(fullpath, "/tmp/old-%s", c);
+	r = asprintf(core_file, "/tmp/old-%s", c);
 	if (r == -1) {
 		goto revert;
 	}
@@ -1213,81 +1213,108 @@ static void move_files(char **fullpath, char **trace_file)
 	c = strrchr(otf, '/') + 1;
 
 	if (!c) {
-		free(*fullpath);
+		free(*core_file);
 		goto revert;
 	}
 
 	r = asprintf(trace_file, "/tmp/old-%s", c);
 	if (r == -1) {
-		free(*fullpath);
+		free(*core_file);
 		goto revert;
 	}
 
-	(void)rename(ofp, *fullpath);
+	(void)rename(ocp, *core_file);
 	(void)rename(otf, *trace_file);
 
-	free(ofp);
+	free(ocp);
 	free(otf);
 
 	return;
 
 revert:
-	*fullpath = ofp;
+	*core_file = ocp;
 	*trace_file = otf;
 }
 
-static void submit_files(char *fullpath, char *trace_file)
+static void backup_file(char **file)
 {
-	(void)system("openvt -s submit_core");
+	char *o, *c = NULL;
+	struct stat st;
+	int r;
+
+	o = strdup(*file);
+	if (!o)
+		return;
+
+	free(*file);
+
+	c = strrchr(o, '/') + 1;
+
+	if (!c)
+		goto revert;
+
+	r = asprintf(file, "/tmp/old-%s", c);
+	if (r == -1) {
+		goto revert;
+	}
+
+	(void)rename(o, *file);
+
+	free(o);
+
+	return;
+
+revert:
+	*file = o;
 }
 
-int scan_corefolders(char *trace_file)
+static void submit_file(char *trace_file)
+{
+	char *call = NULL;
+	int r;
+
+	r = asprintf(&call, "openvt -s submit_core %s", trace_file);
+	if (r == -1)
+		return;
+
+	(void)system(call);
+}
+
+int scan_corefolders(char *fname)
 {
 	DIR *dir = NULL;
 	struct dirent *entry = NULL;
-	char *fullpath = NULL, *appfile = NULL;
+	char *core_file = NULL, *appfile = NULL, *trace_file = NULL;
 	char tmp_folder[] = "/tmp/";
 	int r = 0;
+	struct stat st;
 
-	if (trace_file)
-		exit(EXIT_SUCCESS);
+	if (!trace_file)
+		return -1;
 
-	dir = opendir(tmp_folder);
-	if (!dir)
-		return 1;
+	(void)fprintf(stderr, "+ using %s...\n", trace_file);
 
-	fprintf(stderr, "+ scanning %s...\n", tmp_folder);
-	while(1) {
-		free(fullpath);
-		fullpath = NULL;
+	r = asprintf(&trace_file, "%s%s", tmp_folder, fname);
+	if (r == -1)
+		return -1;
 
-		entry = readdir(dir);
-		if (!entry || !entry->d_name)
-			break;
-		if (entry->d_name[0] == '.')
-			continue;
-		if (strncmp(entry->d_name, "core.", 5))
-			continue;
-
-		/* matched core.#### where #### is the processes pid */
-		r = asprintf(&fullpath, "%s%s", tmp_folder, entry->d_name);
-		if (r == -1) {
-			fullpath = NULL;
-			continue;
-		} else if (((unsigned int)r) != strlen(tmp_folder) + strlen(entry->d_name)) {
-			continue;
-		}
-		trace_file = get_trace_file(fullpath);
-
-		if (!trace_file) {
-			unlink(fullpath);
-		} else {
-			move_files(&fullpath, &trace_file);
-			submit_files(fullpath, trace_file);
-			exit(EXIT_SUCCESS);
-		}
+	r = stat(trace_file, &st);
+	if (r) {
+		free(trace_file);
+		return -errno;
 	}
-	closedir(dir);
 
-	return 1;
+	backup_file(&trace_file);
+	submit_file(trace_file);
+
+	/* try and backup core_file as well, wait a little as it still
+	   may be in the process of getting generated */
+	sleep(5);
+	core_file = get_core_file(trace_file);
+	if (core_file)
+		backup_file(&core_file);
+
+	free(trace_file);
+	free(core_file);
+	return 0;
 }

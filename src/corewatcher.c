@@ -313,7 +313,9 @@ int main(int argc, char**argv)
 	if (!debug)
 		sleep(20);
 
-	scan_corefolders(fname);
+	if (scan_corefolders(fname))
+		return EXIT_FAILURE;
+
 	/* during boot... don't go too fast and slow the system down */
 
 	if (testmode) {
