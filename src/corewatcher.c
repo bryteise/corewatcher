@@ -35,6 +35,7 @@
 #include <asm/unistd.h>
 #include <pthread.h>
 #include <curl/curl.h>
+#include <limits.h>
 
 #include <glib.h>
 #include <dbus/dbus.h>
@@ -54,6 +55,7 @@
 
 static struct option opts[] = {
 	{ "nodaemon", 0, NULL, 'n' },
+	{ "file",     1, NULL, 'f' },
 	{ "debug",    0, NULL, 'd' },
 	{ "always",   0, NULL, 'a' },
 	{ "test",     0, NULL, 't' },
@@ -72,6 +74,8 @@ static void usage(const char *name)
 {
 	fprintf(stderr, "Usage: %s [OPTIONS...]\n", name);
 	fprintf(stderr, "  -n, --nodaemon  Do not daemonize, run in foreground\n");
+	fprintf(stderr, "  -f, --file      Don't poll for crash, run with file "
+		"specified (only looks for file in /tmp)\n");
 	fprintf(stderr, "  -d, --debug     Enable debug mode\n");
 	fprintf(stderr, "  -a, --always    Always send core dumps\n");
 	fprintf(stderr, "  -t, --test      Do not send anything\n");
@@ -204,6 +208,7 @@ int main(int argc, char**argv)
 	int godaemon = 1;
 	int debug = 0;
 	int j = 0;
+	char *fname = NULL;
 
 	core_status.asked_oops = g_hash_table_new_full(g_str_hash, g_str_equal, free, free);
 	core_status.processing_oops = g_hash_table_new_full(g_str_hash, g_str_equal, free, NULL);
@@ -232,7 +237,7 @@ int main(int argc, char**argv)
 		int c;
 		int i;
 
-		c = getopt_long(argc, argv, "adnth", opts, &i);
+		c = getopt_long(argc, argv, "adnf:th", opts, &i);
 		if (c == -1)
 			break;
 
@@ -240,6 +245,19 @@ int main(int argc, char**argv)
 		case 'n':
 			fprintf(stderr, "+ Not running as daemon\n");
 			godaemon = 0;
+			break;
+		case 'f':
+			if (strlen(optarg) >= PATH_MAX) {
+				usage(argv[0]);
+				return EXIT_SUCCESS;
+			}
+			fname = strdup(optarg);
+			if (!fname) {
+				fprintf(stderr,
+					"+ Couldn't allocate memory for file argument");
+				return EXIT_FAILURE;
+			}
+			fprintf(stderr, "+ Using file /tmp/%s\n", optarg);
 			break;
 		case 'd':
 			fprintf(stderr, "+ Starting corewatcher in debug mode\n");
@@ -278,7 +296,7 @@ int main(int argc, char**argv)
 	curl_global_init(CURL_GLOBAL_ALL);
 */
 
-	if (godaemon && daemon(0, 0)) {
+	if (!fname && godaemon && daemon(0, 0)) {
 		fprintf(stderr, "corewatcher failed to daemonize.. exiting \n");
 		return EXIT_FAILURE;
 	}
@@ -295,7 +313,7 @@ int main(int argc, char**argv)
 	if (!debug)
 		sleep(20);
 
-	scan_corefolders(NULL);
+	scan_corefolders(fname);
 	/* during boot... don't go too fast and slow the system down */
 
 	if (testmode) {

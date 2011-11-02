@@ -1241,13 +1241,16 @@ static void submit_files(char *fullpath, char *trace_file)
 	(void)system("openvt -s submit_core");
 }
 
-int scan_corefolders(void __unused *unused)
+int scan_corefolders(char *trace_file)
 {
 	DIR *dir = NULL;
 	struct dirent *entry = NULL;
-	char *fullpath = NULL, *appfile = NULL, *trace_file = NULL;
+	char *fullpath = NULL, *appfile = NULL;
 	char tmp_folder[] = "/tmp/";
 	int r = 0;
+
+	if (trace_file)
+		exit(EXIT_SUCCESS);
 
 	dir = opendir(tmp_folder);
 	if (!dir)
@@ -1281,7 +1284,7 @@ int scan_corefolders(void __unused *unused)
 		} else {
 			move_files(&fullpath, &trace_file);
 			submit_files(fullpath, trace_file);
-			exit(0);
+			exit(EXIT_SUCCESS);
 		}
 	}
 	closedir(dir);
