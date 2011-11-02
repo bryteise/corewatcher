@@ -54,7 +54,7 @@
 #define IOPRIO_CLASS_IDLE 3
 #define IOPRIO_CLASS_SHIFT 13
 #define IOPRIO_CLASS_DATA 7
-#define IOPRIO_IDLE_LOWEST (IOPRIO_CLASS_DATA |  (IOPRIO_CLASS_IDLE << IOPRIO_CLASS_SHIFT))
+#define IOPRIO_IDLE_LOWEST (IOPRIO_CLASS_DATA | (IOPRIO_CLASS_IDLE << IOPRIO_CLASS_SHIFT))
 
 #include "corewatcher.h"
 
@@ -82,12 +82,12 @@ static void usage(const char *name)
 {
 	fprintf(stderr, "Usage: %s [OPTIONS...]\n", name);
 	fprintf(stderr, "  -n, --nodaemon  Do not daemonize, run in foreground\n");
-	fprintf(stderr, "  -f, --file      Don't poll for crash, run with file "
+	fprintf(stderr, "  -f, --file	   Don't poll for crash, run with file "
 		"specified (only looks for file in /tmp)\n");
-	fprintf(stderr, "  -d, --debug     Enable debug mode\n");
-	fprintf(stderr, "  -a, --always    Always send core dumps\n");
-	fprintf(stderr, "  -t, --test      Do not send anything\n");
-	fprintf(stderr, "  -h, --help      Display this help message\n");
+	fprintf(stderr, "  -d, --debug	   Enable debug mode\n");
+	fprintf(stderr, "  -a, --always	   Always send core dumps\n");
+	fprintf(stderr, "  -t, --test	   Do not send anything\n");
+	fprintf(stderr, "  -h, --help	   Display this help message\n");
 }
 
 static DBusHandlerResult got_message(
