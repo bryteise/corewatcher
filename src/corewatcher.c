@@ -400,7 +400,7 @@ int main(int argc, char**argv)
 		dbus_connection_add_filter(bus, got_message, NULL, NULL);
 	}
 
-	if (!debug)
+	if (!debug && !fname)
 		sleep(20);
 
 	/* during boot... don't go too fast and slow the system down */
