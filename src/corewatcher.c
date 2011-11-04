@@ -394,7 +394,6 @@ int main(int argc, char**argv)
 	dbus_error_init(&error);
 	bus = dbus_bus_get(DBUS_BUS_SYSTEM, &error);
 	if (bus) {
-		dbus_connection_setup_with_g_main(bus, NULL);
 		dbus_bus_add_match(bus, "type='signal',interface='org.corewatcher.submit.ping'", &error);
 		dbus_bus_add_match(bus, "type='signal',interface='org.corewatcher.submit.permission'", &error);
 		dbus_connection_add_filter(bus, got_message, NULL, NULL);
@@ -452,8 +451,10 @@ int main(int argc, char**argv)
 			break;
 	}
 
-	dbus_bus_remove_match(bus, "type='signal',interface='org.corewatcher.submit.ping'", &error);
-	dbus_bus_remove_match(bus, "type='signal',interface='org.corewatcher.submit.permission'", &error);
+	if (bus) {
+		dbus_bus_remove_match(bus, "type='signal',interface='org.corewatcher.submit.ping'", &error);
+		dbus_bus_remove_match(bus, "type='signal',interface='org.corewatcher.submit.permission'", &error);
+	}
 
 	for (j = 0; j < url_count; j++)
 		free(submit_url[j]);
