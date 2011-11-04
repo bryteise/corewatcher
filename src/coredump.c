@@ -1290,7 +1290,7 @@ int scan_corefolders(char *fname)
 	struct stat st;
 
 	if (!fname)
-		return -1;
+		return -ENOENT;
 
 	(void)fprintf(stderr, "+ using %s...\n", fname);
 

@@ -70,9 +70,8 @@ static struct option opts[] = {
 };
 
 static char corewatcher_mon_file[] = "/tmp/corewatcher";
-
+static int corewatcher_fd;
 struct core_status core_status;
-
 static DBusConnection *bus;
 
 int pinged;
@@ -210,55 +209,70 @@ void dbus_say_found(char *fullpath, char *appfile)
 }
 
 static int server_init(void) {
-	int r = -1;
+	int r;
 	unsigned i;
 	struct epoll_event ev;
 	sigset_t mask;
 	int epoll_fd;
-	int corewatcher_fd;
 	mode_t prev_mode;
+	mode_t perms = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH;
+
 
 	epoll_fd = epoll_create1(EPOLL_CLOEXEC);
 	if (epoll_fd < 0) {
 		r = -errno;
 		goto fail;
-	};
+	}
 
 	prev_mode = umask(0);
+	r = mkfifo(corewatcher_mon_file, perms);
+	if (r == -1 && errno != EEXIST) {
+		r  = -errno;
+		goto fail;
+	}
+	(void)umask(prev_mode);
 
-	corewatcher_fd = open(corewatcher_mon_file, O_RDONLY | O_CREAT,
-			      S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
+	corewatcher_fd = open(corewatcher_mon_file, O_RDONLY | O_NONBLOCK);
+
 	if (corewatcher_fd == -1) {
-		r = -errno;
+		r  = -errno;
 		goto fail;
 	}
 
 	ev.events = EPOLLIN;
+	ev.data.fd = corewatcher_fd;
 
 	r = epoll_ctl(epoll_fd, EPOLL_CTL_ADD, corewatcher_fd, &ev);
 	if (r < 0) {
-		r = -errno;
+		r  = -errno;
 		goto fail;
 	}
 
-	return epoll_fd;
+	r = epoll_fd;
 
 fail:
 	return r;
 }
 
+static int find_invalid_chars(char *str, int size)
+{
+	int i;
+	for (i = 0; i < size; i++)
+		if (isspace(str[i]) || str[i] == '\0')
+			return 1;
+
+	return 0;
+}
+
 static int process_event(struct epoll_event *event)
 {
 	int r;
-	int corewatcher_fd;
 	char buf[PATH_MAX];
-	char *l, *n;
 	struct stat st;
 
-	corewatcher_fd = open(corewatcher_mon_file, O_RDONLY);
-	if (corewatcher_fd < 0) {
-		r = -errno;
-		goto fail;
+	if(event->data.fd != corewatcher_fd) {
+		r = 1;
+		goto quit;
 	}
 
 	if (flock(corewatcher_fd, LOCK_EX)) {
@@ -271,21 +285,22 @@ static int process_event(struct epoll_event *event)
 		r = -errno;
 		goto fail;
 	} else if (r == 0) {
-		goto fail;
+		r = 1;
+		goto quit;
 	}
 
-	n = strchr(buf, '\0');
-	if (n != &buf[r]) {
-		/* embedded nul? eww bail */
-		r = -1;
-		goto fail;
+	r = find_invalid_chars(buf, r);
+	if (r) {
+		r = 1;
+		goto quit;
 	}
-
-	l = strchr(buf, '\n');
-	if (l)
-		l = '\0';
 
 	r = scan_corefolders(buf);
+
+	if (r == -ENOENT) {
+		r = 1;
+		goto quit;
+	}
 
 fail:
 	if (corewatcher_fd >= 0) {
@@ -293,6 +308,7 @@ fail:
 		(void)close(corewatcher_fd);
 	}
 
+quit:
 	return r;
 }
 
@@ -449,6 +465,8 @@ int main(int argc, char**argv)
 
 		if (k == 0)
 			break;
+
+		/* if k > 0, retry bad input */
 	}
 
 	if (bus) {
