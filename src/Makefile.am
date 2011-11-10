@@ -2,6 +2,9 @@ sbin_PROGRAMS = \
 	corewatcher \
 	corewatcher-config
 
+bin_SCRIPTS = \
+	submit_core
+
 corewatcher_SOURCES = \
 	configfile.c \
 	coredump.c \

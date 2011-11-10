@@ -4,8 +4,6 @@ SUBDIRS = \
 man_MANS = \
 	corewatcher.8
 
-corewatcherconfdir = $(sysconfdir)/corewatcher
-
 EXTRA_DIST = \
 	corewatcher.supp \
 	$(man_MANS)
