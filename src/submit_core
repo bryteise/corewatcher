@@ -1,12 +1,41 @@
 #!/bin/bash
 
-read -p "Submit crash? (Y/n): " -r -s -e -n 1 input
+echo -n "Crash detected from following command: "
 
-if [ "$input" == 'n' -o "$input" == 'N' ]; then
-    echo "Done."
-    exit
-fi
+while read line
+do
+    if [ "$line" = "CMDLINE:" ]; then
+	read line
+	echo $line
+    fi
+done < $1
 
-echo "Submitting..."
-echo "Done."
+echo ""
+echo "Backtrace"
+while read line
+do
+    if [ "$line" = "BACKTRACE:" ]; then
+	read line
+	read line
+	read line
+    fi
+    if [ "$line" = "MAPS:" ]; then
+	break
+    fi
+    echo $line
+done < $1
+
+echo "This information can be found in the file $1"
+echo ""
+echo "You can either restart or press Control+Alt+F1 to go back to your (possibly unstable) desktop."
+
+#read -p "Submit crash? (Y/n): " -r -s -e -n 1 input
+
+# if [ "$input" == 'n' -o "$input" == 'N' ]; then
+#     echo "Done."
+#     exit
+# fi
+
+# echo "Submitting..."
+# echo "Done."
 
