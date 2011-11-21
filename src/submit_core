@@ -1,12 +1,12 @@
 #!/bin/bash
+shopt -s compat31
 
 echo -n "Crash detected from following command: "
 
 while read line
 do
-    if [ "$line" = "CMDLINE:" ]; then
-	read line
-	echo $line
+    if [[ $line =~ 'cmdline: (.*)' ]]; then
+	echo ${BASH_REMATCH[0]}
     fi
 done < $1
 
@@ -14,17 +14,24 @@ echo ""
 echo "Backtrace"
 while read line
 do
-    if [ "$line" = "BACKTRACE:" ]; then
+    if [[ $line =~ 'backtrace:' ]]; then
 	read line
 	read line
 	read line
+    else
+	continue
     fi
-    if [ "$line" = "MAPS:" ]; then
-	break
-    fi
-    echo $line
+
+    while read line
+    do
+	if [[ $line =~ 'maps:' ]]; then
+	    break
+	fi
+	echo $line
+    done
 done < $1
 
+echo ""
 echo "This information can be found in the file $1"
 echo ""
 echo "You can either restart or press Control+Alt+F1 to go back to your (possibly unstable) desktop."
