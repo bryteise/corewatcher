@@ -16,16 +16,12 @@ corewatcher_config_SOURCES = \
 	corewatcher-config.c
 
 corewatcher_CFLAGS = \
-	$(DBUS_CFLAGS) \
-	$(DBUSGLIB_CFLAGS) \
 	$(GLIB2_CFLAGS) \
 	$(LIBPROXY_CFLAGS) \
 	$(LIBNOTIFY_CFLAGS) \
 	$(LIBCURL_CFLAGS)
 
 corewatcher_LDADD = \
-	$(DBUS_LIBS) \
-	$(DBUSGLIB_LIBS) \
 	$(GLIB2_LIBS) \
 	$(LIBPROXY_LIBS) \
 	$(LIBNOTIFY_LIBS) \

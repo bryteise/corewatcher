@@ -14,8 +14,6 @@ AC_PROG_INSTALL
 AC_CHECK_LIB([pthread], [pthread_mutex_unlock], , AC_MSG_ERROR([libpthread is required but was not found]))
 
 # PkgConfig tests
-PKG_CHECK_MODULES([DBUS], [dbus-1])
-PKG_CHECK_MODULES([DBUSGLIB], [dbus-glib-1])
 PKG_CHECK_MODULES([GLIB2], [glib-2.0])
 PKG_CHECK_MODULES([LIBPROXY], [libproxy-1.0])
 PKG_CHECK_MODULES([LIBNOTIFY], [libnotify])

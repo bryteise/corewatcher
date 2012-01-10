@@ -44,9 +44,6 @@
 #include <errno.h>
 
 #include <glib.h>
-#include <dbus/dbus.h>
-#include <dbus/dbus-glib.h>
-#include <dbus/dbus-glib-lowlevel.h>
 
 
 /* see linux kernel doc Documentation/block/ioprio.txt */
@@ -72,7 +69,6 @@ static struct option opts[] = {
 static char corewatcher_mon_file[] = "/tmp/corewatcher";
 static int corewatcher_fd;
 struct core_status core_status;
-static DBusConnection *bus;
 
 int pinged;
 int testmode = 0;
@@ -87,125 +83,6 @@ static void usage(const char *name)
 	fprintf(stderr, "  -a, --always	   Always send core dumps\n");
 	fprintf(stderr, "  -t, --test	   Do not send anything\n");
 	fprintf(stderr, "  -h, --help	   Display this help message\n");
-}
-
-static DBusHandlerResult got_message(
-		DBusConnection __unused *conn,
-		DBusMessage *message,
-		void __unused *user_data)
-{
-	char *fullpath = NULL, *appfile = NULL;
-
-	if (dbus_message_is_signal(message,
-		"org.corewatcher.submit.ping", "ping")) {
-		pinged = 1;
-		return DBUS_HANDLER_RESULT_HANDLED;
-	}
-
-	if (dbus_message_is_signal(message,
-		"org.corewatcher.submit.permission", "yes")) {
-		dbus_message_get_args(message, NULL,
-				      DBUS_TYPE_STRING, &fullpath,
-				      DBUS_TYPE_STRING, &appfile,
-				      DBUS_TYPE_INVALID);
-		move_core(fullpath, "to-process");
-		pthread_mutex_lock(&core_status.asked_mtx);
-		g_hash_table_remove(core_status.asked_oops, fullpath);
-		pthread_mutex_unlock(&core_status.asked_mtx);
-		return DBUS_HANDLER_RESULT_HANDLED;
-	}
-	if (dbus_message_is_signal(message,
-		"org.corewatcher.submit.permission", "always")) {
-		opted_in = 2;
-		dbus_message_get_args(message, NULL,
-				      DBUS_TYPE_STRING, &fullpath,
-				      DBUS_TYPE_STRING, &appfile,
-				      DBUS_TYPE_INVALID);
-		move_core(fullpath, "to-process");
-		pthread_mutex_lock(&core_status.asked_mtx);
-		g_hash_table_remove(core_status.asked_oops, fullpath);
-		pthread_mutex_unlock(&core_status.asked_mtx);
-		return DBUS_HANDLER_RESULT_HANDLED;
-	}
-	if (dbus_message_is_signal(message,
-		"org.corewatcher.submit.permission", "never")) {
-		opted_in = 0;
-		dbus_message_get_args(message, NULL,
-				      DBUS_TYPE_STRING, &fullpath,
-				      DBUS_TYPE_STRING, &appfile,
-				      DBUS_TYPE_INVALID);
-		unlink(fullpath);
-		pthread_mutex_lock(&core_status.asked_mtx);
-		g_hash_table_remove(core_status.asked_oops, fullpath);
-		pthread_mutex_unlock(&core_status.asked_mtx);
-		return DBUS_HANDLER_RESULT_HANDLED;
-	}
-	if (dbus_message_is_signal(message,
-		"org.corewatcher.submit.permission", "no")) {
-		dbus_message_get_args(message, NULL,
-				      DBUS_TYPE_STRING, &fullpath,
-				      DBUS_TYPE_STRING, &appfile,
-				      DBUS_TYPE_INVALID);
-		unlink(fullpath);
-		pthread_mutex_lock(&core_status.asked_mtx);
-		g_hash_table_remove(core_status.asked_oops, fullpath);
-		pthread_mutex_unlock(&core_status.asked_mtx);
-		return DBUS_HANDLER_RESULT_HANDLED;
-	}
-
-	return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
-}
-
-void dbus_ask_permission(char *fullpath, char *appfile)
-{
-	DBusMessage *message;
-	if (!bus || !fullpath || !appfile)
-		return;
-
-	message = dbus_message_new_signal("/org/corewatcher/submit/permission",
-			"org.corewatcher.submit.permission", "ask");
-
-	dbus_message_append_args(message,
-				 DBUS_TYPE_STRING, &fullpath,
-				 DBUS_TYPE_STRING, &appfile,
-				 DBUS_TYPE_INVALID);
-
-	dbus_connection_send(bus, message, NULL);
-	dbus_message_unref(message);
-}
-
-
-void dbus_say_thanks(char *url)
-{
-	DBusMessage *message;
-
-	if (!bus)
-		return;
-	if (url && strlen(url)) {
-		message = dbus_message_new_signal("/org/corewatcher/submit/url",
-			"org.corewatcher.submit.url", "url");
-		dbus_message_append_args (message, DBUS_TYPE_STRING, &url, DBUS_TYPE_INVALID);
-		dbus_connection_send(bus, message, NULL);
-		dbus_message_unref(message);
-		syslog(LOG_WARNING, "corewatcher.org: oops is posted as %s", url);
-	}
-}
-
-void dbus_say_found(char *fullpath, char *appfile)
-{
-	DBusMessage *message;
-
-	if (!bus || !fullpath || !appfile)
-		return;
-
-	message = dbus_message_new_signal("/org/corewatcher/submit/sent",
-			"org.corewatcher.submit.sent", "sent");
-	dbus_message_append_args(message, DBUS_TYPE_STRING, &fullpath,
-				 DBUS_TYPE_STRING, &appfile,
-				 DBUS_TYPE_INVALID);
-
-	dbus_connection_send(bus, message, NULL);
-	dbus_message_unref(message);
 }
 
 static int server_init(void) {
@@ -315,7 +192,6 @@ quit:
 int main(int argc, char**argv)
 {
 	int epoll_fd;
-	DBusError error;
 	int godaemon = 1;
 	int debug = 0;
 	int j = 0;
@@ -407,14 +283,6 @@ int main(int argc, char**argv)
 		goto fail;
 	}
 
-	dbus_error_init(&error);
-	bus = dbus_bus_get(DBUS_BUS_SYSTEM, &error);
-	if (bus) {
-		dbus_bus_add_match(bus, "type='signal',interface='org.corewatcher.submit.ping'", &error);
-		dbus_bus_add_match(bus, "type='signal',interface='org.corewatcher.submit.permission'", &error);
-		dbus_connection_add_filter(bus, got_message, NULL, NULL);
-	}
-
 	if (!debug && !fname)
 		sleep(20);
 
@@ -422,8 +290,6 @@ int main(int argc, char**argv)
 
 	if (testmode) {
 		(void)scan_corefolders(fname);
-		dbus_bus_remove_match(bus, "type='signal',interface='org.corewatcher.submit.ping'", &error);
-		dbus_bus_remove_match(bus, "type='signal',interface='org.corewatcher.submit.permission'", &error);
 		for (j = 0; j < url_count; j++)
 			free(submit_url[j]);
 		g_hash_table_destroy(core_status.asked_oops);
@@ -467,11 +333,6 @@ int main(int argc, char**argv)
 			break;
 
 		/* if k > 0, retry bad input */
-	}
-
-	if (bus) {
-		dbus_bus_remove_match(bus, "type='signal',interface='org.corewatcher.submit.ping'", &error);
-		dbus_bus_remove_match(bus, "type='signal',interface='org.corewatcher.submit.permission'", &error);
 	}
 
 	for (j = 0; j < url_count; j++)
