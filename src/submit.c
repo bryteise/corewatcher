@@ -65,6 +65,8 @@ void queue_backtrace(struct oops *oops)
 		return;
 
 	new = malloc(sizeof(struct oops));
+	if (!new)
+		return;
 	pthread_mutex_lock(&queued_bt_mtx);
 	new->next = queued_backtraces;
 	if (oops->application)
