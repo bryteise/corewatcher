@@ -37,14 +37,3 @@ echo ""
 echo "You can either restart or press Control+Alt+F1 to go back to your (possibly unstable) desktop."
 
 curl -F "crash=`cat $1`" http://crashdb02.jf.intel.com/submit_crash/
-
-#read -p "Submit crash? (Y/n): " -r -s -e -n 1 input
-
-# if [ "$input" == 'n' -o "$input" == 'N' ]; then
-#     echo "Done."
-#     exit
-# fi
-
-# echo "Submitting..."
-# echo "Done."
-
