@@ -147,6 +147,8 @@ static int process_event(struct epoll_event *event)
 	char buf[PATH_MAX];
 	struct stat st;
 
+	bzero(buf, PATH_MAX);
+
 	if(event->data.fd != corewatcher_fd) {
 		r = 1;
 		goto quit;
