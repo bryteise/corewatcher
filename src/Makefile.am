@@ -2,7 +2,7 @@ sbin_PROGRAMS = \
 	corewatcher \
 	corewatcher-config
 
-bin_SCRIPTS = \
+dist_bin_SCRIPTS = \
 	submit_core
 
 corewatcher_SOURCES = \
