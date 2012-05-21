@@ -31,6 +31,7 @@ corewatcher_LDADD = \
 	$(LIBCURL_LIBS)
 
 corewatcher_config_CFLAGS = \
+	$(AM_CFLAGS) \
 	$(GLIB2_CFLAGS)
 corewatcher_config_LDADD = \
 	$(GLIB2_LIBS)
