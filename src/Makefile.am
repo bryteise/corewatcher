@@ -1,3 +1,9 @@
+AM_CFLAGS = -std=gnu99 -fstack-protector -D_FORTIFY_SOURCE=2 \
+	-Wall -pedantic -W -Wstrict-prototypes -Wundef -fno-common \
+	-Werror-implicit-function-declaration \
+	-Wdeclaration-after-statement -Wformat \
+	-Wformat-security -Werror=format-security
+
 sbin_PROGRAMS = \
 	corewatcher \
 	corewatcher-config
@@ -13,6 +19,7 @@ corewatcher_config_SOURCES = \
 	corewatcher-config.c
 
 corewatcher_CFLAGS = \
+	$(AM_CFLAGS) \
 	$(LIBPROXY_CFLAGS) \
 	$(LIBNOTIFY_CFLAGS) \
 	$(LIBCURL_CFLAGS)
