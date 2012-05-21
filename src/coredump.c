@@ -691,12 +691,7 @@ static char *get_appfile(char *fullpath)
 	if (!appfile)
 		return NULL;
 
-	if (opted_in == 2) {
-		move_core(fullpath, "to-process");
-	} else {
-		free(appfile);
-		return NULL;
-	}
+	move_core(fullpath, "to-process");
 
 	return appfile;
 }
