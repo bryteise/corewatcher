@@ -93,9 +93,6 @@ extern int do_unlink;
 extern int private_report;
 
 /* corewatcher.c */
-extern void dbus_ask_permission(char *fullpath, char *appfile);
-extern void dbus_say_thanks(char *url);
-extern void dbus_say_found(char *fullpath, char *appfile);
 extern int testmode;
 extern int pinged;
 extern struct core_status core_status;

@@ -692,24 +692,7 @@ static char *get_appfile(char *fullpath)
 		return NULL;
 
 	if (opted_in == 2) {
-		dbus_say_found(fullpath, appfile);
 		move_core(fullpath, "to-process");
-	} else if (opted_in == 1) {
-		char *fp = NULL, *af = NULL;
-		if (!(fp = strdup(fullpath))) {
-			free(appfile);
-			return NULL;
-		}
-		if (!(af = strdup(appfile))) {
-			free(fp);
-			free(appfile);
-			return NULL;
-		}
-		dbus_ask_permission(fullpath, appfile);
-		/* If we got here the oops wasn't in the hash so add it */
-		pthread_mutex_lock(&core_status.asked_mtx);
-		g_hash_table_insert(core_status.asked_oops, fp, af);
-		pthread_mutex_unlock(&core_status.asked_mtx);
 	} else {
 		free(appfile);
 		return NULL;

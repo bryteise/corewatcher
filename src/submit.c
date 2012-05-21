@@ -245,7 +245,6 @@ static void submit_queue_with_url(struct oops *queue, char *wsubmit_url, char *p
 			}
 
 			g_hash_table_remove(core_status.queued_oops, oops->filename);
-			dbus_say_thanks(result_url);
 			count++;
 		} else {
 			g_hash_table_remove(core_status.queued_oops, oops->filename);
