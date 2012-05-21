@@ -347,6 +347,7 @@ static void build_times(char *cmd, GHashTable *ht_p2p, GHashTable *ht_p2d)
 		free(rl);
 		free(pack);
 		free(date);
+		date = NULL;
 	}
 	pclose(file);
 	free(dline);
