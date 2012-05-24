@@ -121,6 +121,7 @@ int main(int argc, char**argv)
 			debug = 1;
 			break;
 		case 't':
+			testmode = 1;
 			fprintf(stderr, "+ Test mode enabled: not sending anything\n");
 			break;
 		case 'h':
