@@ -32,12 +32,6 @@
 
 #include "corewatcher.h"
 
-/* 0 =  No
-   1 =  Ask
-   2 =  Yes
- */
-int opted_in = 0;
-int allow_distro_to_pass_on = 0;
 char *submit_url[MAX_URLS];
 char *build_release = NULL;
 char *core_folder = NULL;
@@ -73,24 +67,6 @@ void read_config_file(char *filename)
 		if (n) *n = 0;
 
 		line_len = line + dummy;
-		c = strstr(line, "allow-submit");
-		if (c) {
-			c += 13;
-			if (c < line_len) {
-				if (strstr(c, "yes"))
-					opted_in = 2;
-				if (strstr(c, "ask"))
-					opted_in = 1;
-			}
-		}
-		c = strstr(line, "allow-pass-on");
-		if (c) {
-			c += 14;
-			if (c < line_len) {
-				if (strstr(c, "yes"))
-					allow_distro_to_pass_on = 1;
-			}
-		}
 		c = strstr(line, "unlink");
 		if (c)
 			if (strstr(c, "yes"))
