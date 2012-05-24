@@ -220,11 +220,10 @@ static void submit_queue_with_url(struct oops *queue, char *wsubmit_url, char *p
 			CURLFORM_COPYNAME, "data",
 			CURLFORM_COPYCONTENTS, oops->text, CURLFORM_END);
 
-		if (allow_distro_to_pass_on) {
-			curl_formadd(&post, &last,
-				CURLFORM_COPYNAME, "pass_on_allowed",
-				CURLFORM_COPYCONTENTS, "yes", CURLFORM_END);
-		}
+
+		curl_formadd(&post, &last,
+			     CURLFORM_COPYNAME, "pass_on_allowed",
+			     CURLFORM_COPYCONTENTS, "yes", CURLFORM_END);
 
 		curl_easy_setopt(handle, CURLOPT_HTTPPOST, post);
 		curl_easy_setopt(handle, CURLOPT_WRITEFUNCTION, writefunction);

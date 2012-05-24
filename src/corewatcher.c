@@ -67,7 +67,6 @@ static void usage(const char *name)
 	fprintf(stderr, "Usage: %s [OPTIONS...]\n", name);
 	fprintf(stderr, "  -n, --nodaemon  Do not daemonize, run in foreground\n");
 	fprintf(stderr, "  -d, --debug     Enable debug mode\n");
-	fprintf(stderr, "  -a, --always    Always send core dumps\n");
 	fprintf(stderr, "  -t, --test      Do not send anything\n");
 	fprintf(stderr, "  -h, --help      Display this help message\n");
 }
@@ -121,10 +120,6 @@ int main(int argc, char**argv)
 			fprintf(stderr, "+ Starting corewatcher in debug mode\n");
 			debug = 1;
 			break;
-		case 'a':
-			fprintf(stderr, "+ Sending All reports\n");
-			opted_in = 2;
-			break;
 		case 't':
 			fprintf(stderr, "+ Test mode enabled: not sending anything\n");
 			break;
@@ -136,7 +131,7 @@ int main(int argc, char**argv)
 		}
 	}
 
-	if (!opted_in && !testmode) {
+	if (!testmode) {
 		fprintf(stderr, "+ Inactive by user preference\n");
 		return EXIT_SUCCESS;
 	}
