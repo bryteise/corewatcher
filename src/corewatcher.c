@@ -107,7 +107,7 @@ int main(int argc, char**argv)
 		int c;
 		int i;
 
-		c = getopt_long(argc, argv, "adnh", opts, &i);
+		c = getopt_long(argc, argv, "adnth", opts, &i);
 		if (c == -1)
 			break;
 
