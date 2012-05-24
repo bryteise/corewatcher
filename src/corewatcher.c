@@ -154,9 +154,7 @@ int main(int argc, char**argv)
 	if (!debug)
 		sleep(20);
 
-	/* we scan dmesg before /var/log/messages; dmesg is a more accurate source normally */
 	scan_corefolders(NULL);
-	/* during boot... don't go too fast and slow the system down */
 
 	if (testmode) {
 		g_main_loop_unref(loop);
