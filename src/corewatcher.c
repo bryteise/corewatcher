@@ -131,11 +131,6 @@ int main(int argc, char**argv)
 		}
 	}
 
-	if (!testmode) {
-		fprintf(stderr, "+ Inactive by user preference\n");
-		return EXIT_SUCCESS;
-	}
-
 	/*
 	 * the curl docs say that we "should" call curl_global_init early,
 	 * even though it'll be called later on via curl_easy_init().
