@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <glib.h>
 
-#define DEFAULT_FILE	"/etc/corewatcher.conf"
+#define DEFAULT_FILE	"/etc/corewatcher/corewatcher.conf"
 #define DEFAULT_GROUP	"corewatcher"
 
 int parse_arg(gchar *arg, gchar **group, gchar **key, gchar **value)

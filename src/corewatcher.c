@@ -101,7 +101,7 @@ int main(int argc, char**argv)
 	if (nice(15) < 0)
 		perror("Can not set schedule priority");
 
-	read_config_file("/etc/corewatcher.conf");
+	read_config_file("/etc/corewatcher/corewatcher.conf");
 
 	while (1) {
 		int c;
