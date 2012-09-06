@@ -79,10 +79,13 @@ static char *get_release(void)
 			char *c = NULL;
 
 			c = strchr(line, '\n');
-			if (c) *c = 0;
-
-			fclose(file);
-			return &line[11];
+			if (c) {
+				*c = 0;
+				c = strdup(&line[11]);
+				fclose(file);
+				free(line);
+				return c;
+			}
 		}
 	}
 
