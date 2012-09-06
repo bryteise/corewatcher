@@ -1,0 +1,73 @@
+cmdline: /usr/bin/mate-calc
+release: 1160
+backtrace: |
+        #0  0x00007fd494c2db41 in g_logv () from /usr/lib64/libglib-2.0.so.0
+        #0  0x00007fd494c2db41 in g_logv () from /usr/lib64/libglib-2.0.so.0
+        #1  0x00007fd494c2dcfd in g_log () from /usr/lib64/libglib-2.0.so.0
+        #2  0x00007fd4959a10ee in g_settings_set_property () from /usr/lib64/libgio-2.0.so.0
+        #3  0x00007fd4956ae098 in g_object_constructor () from /usr/lib64/libgobject-2.0.so.0
+        #4  0x00007fd4956af562 in g_object_newv () from /usr/lib64/libgobject-2.0.so.0
+        #5  0x00007fd4956afd5e in g_object_new_valist () from /usr/lib64/libgobject-2.0.so.0
+        #6  0x00007fd4956b00b4 in g_object_new () from /usr/lib64/libgobject-2.0.so.0
+        #7  0x000000000040b9d5 in main ()
+maps: |
+        From                To                  Syms Read   Shared Object Library
+                                                No          linux-vdso.so.1
+        0x00007fd4971f5f00  0x00007fd49745ecf0  Yes (*)     /usr/lib64/libgtk-x11-2.0.so.0
+        0x00007fd496ef7420  0x00007fd496f4ccb8  Yes (*)     /usr/lib64/libgdk-x11-2.0.so.0
+        0x00007fd496cc0030  0x00007fd496ccc290  Yes (*)     /usr/lib64/libatk-1.0.so.0
+        0x00007fd496aa8490  0x00007fd496ab05bc  Yes (*)     /usr/lib64/libpangoft2-1.0.so.0
+        0x00007fd496898f20  0x00007fd49689dd14  Yes (*)     /usr/lib64/libpangocairo-1.0.so.0
+        0x00007fd49667aa80  0x00007fd49668c018  Yes (*)     /usr/lib64/libgdk_pixbuf-2.0.so.0
+        0x00007fd496377cc0  0x00007fd49643941c  Yes (*)     /usr/lib64/libcairo.so.2
+        0x00007fd496127680  0x00007fd496146fe0  Yes (*)     /usr/lib64/libpango-1.0.so.0
+        0x00007fd495e95a90  0x00007fd495ef1fa4  Yes (*)     /usr/lib64/libfreetype.so.6
+        0x00007fd495c55390  0x00007fd495c726d0  Yes (*)     /usr/lib64/libfontconfig.so.1
+        0x00007fd49591b3b0  0x00007fd4959e7fa0  Yes (*)     /usr/lib64/libgio-2.0.so.0
+        0x00007fd4956a3f60  0x00007fd4956d3890  Yes (*)     /usr/lib64/libgobject-2.0.so.0
+        0x00007fd49535cc30  0x00007fd49544b8a0  Yes (*)     /usr/lib64/libxml2.so.2
+        0x00007fd49512e200  0x00007fd49512f0f4  Yes (*)     /usr/lib64/libgmodule-2.0.so.0
+        0x00007fd494f272f0  0x00007fd494f2a76c  Yes         /lib64/librt.so.1
+        0x00007fd494bf7a20  0x00007fd494cb133c  Yes (*)     /usr/lib64/libglib-2.0.so.0
+        0x00007fd4948e95c0  0x00007fd4949529fc  Yes         /lib64/libm.so.6
+        0x00007fd4946ce7a0  0x00007fd4946d9bb4  Yes         /lib64/libpthread.so.0
+        0x00007fd49433f180  0x00007fd494482d60  Yes (*)     /lib64/libc.so.6
+        0x00007fd494111720  0x00007fd49411b984  Yes         /usr/lib64/libXext.so.6
+        0x00007fd493f06b10  0x00007fd493f0c978  Yes         /usr/lib64/libXrender.so.1
+        0x00007fd493be6c90  0x00007fd493c6f5e0  Yes         /usr/lib64/libX11.so.6
+        0x00007fd4939c7bd0  0x00007fd4939c85ec  Yes         /usr/lib64/libXdamage.so.1
+        0x00007fd4937c3580  0x00007fd4937c5c8c  Yes         /usr/lib64/libXfixes.so.3
+        0x00007fd4935675a0  0x00007fd4935aaacc  Yes (*)     /usr/lib64/libharfbuzz.so.0
+        0x00007fd49333b040  0x00007fd493356758  Yes (*)     /usr/lib64/libpng15.so.15
+        0x00007fd4930adba0  0x00007fd493120d2c  Yes (*)     /usr/lib64/libpixman-1.so.0
+        0x00007fd492e8e9c0  0x00007fd492e9d04c  Yes (*)     /usr/lib64/libEGL.so.1
+        0x00007fd492c87ed0  0x00007fd492c889f0  Yes         /lib64/libdl.so.2
+        0x00007fd492a85ab0  0x00007fd492a860f8  Yes         /usr/lib64/libxcb-shm.so.0
+        0x00007fd49287f4d0  0x00007fd492881f90  Yes         /usr/lib64/libxcb-render.so.0
+        0x00007fd492667950  0x00007fd49267353c  Yes         /usr/lib64/libxcb.so.1
+        0x00007fd49244b1c0  0x00007fd49245742c  Yes         /usr/lib64/libz.so.1
+        0x00007fd492203ae0  0x00007fd492235874  Yes (*)     /usr/lib64/libGL.so.1
+        0x00007fd491fda6d0  0x00007fd491fe6110  Yes (*)     /usr/lib64/libbz2.so.1.0
+        0x00007fd491db3e10  0x00007fd491dcd230  Yes         /usr/lib64/libexpat.so.1
+        0x00007fd491baf690  0x00007fd491baf7ec  Yes (*)     /usr/lib64/libgthread-2.0.so.0
+        0x00007fd4919a88d0  0x00007fd4919ad144  Yes         /usr/lib64/libffi.so.6
+        0x00007fd491792a80  0x00007fd4917a138c  Yes         /lib64/libresolv.so.2
+        0x00007fd49156f9b0  0x00007fd4915848e0  Yes (*)     /usr/lib64/liblzma.so.5
+        0x00007fd4977c7af0  0x00007fd4977e2379  Yes         /lib64/ld-linux-x86-64.so.2
+        0x00007fd49133ead0  0x00007fd4913524f0  Yes         /usr/lib64/libicule.so.49
+        0x00007fd4910019c0  0x00007fd4910b91f8  Yes         /usr/lib64/libicuuc.so.49
+                                                Yes (*)     /usr/lib64/libicudata.so.49
+        0x00007fd48fa8d5b0  0x00007fd48fa8d6d0  Yes         /usr/lib64/libX11-xcb.so.1
+        0x00007fd48f88a750  0x00007fd48f88b3f4  Yes         /usr/lib64/libxcb-dri2.so.0
+        0x00007fd48f6854d0  0x00007fd48f686cd0  Yes         /usr/lib64/libxcb-xfixes.so.0
+        0x00007fd48f480f40  0x00007fd48f4817ac  Yes         /usr/lib64/libxcb-shape.so.0
+        0x00007fd48f2728d0  0x00007fd48f27a6c0  Yes (*)     /usr/lib64/libudev.so.1
+        0x00007fd48f065360  0x00007fd48f06a4bc  Yes (*)     /usr/lib64/libdrm.so.2
+        0x00007fd48ee5ff70  0x00007fd48ee60c74  Yes (*)     /usr/lib64/libXau.so.6
+        0x00007fd48ec5b340  0x00007fd48ec5ce14  Yes         /usr/lib64/libXdmcp.so.6
+        0x00007fd48ea3d860  0x00007fd48ea46358  Yes (*)     /usr/lib64/libglapi.so.0
+        0x00007fd48e827d70  0x00007fd48e82dedc  Yes         /usr/lib64/libxcb-glx.so.0
+        0x00007fd48e619fa0  0x00007fd48e61ca4c  Yes         /usr/lib64/libXxf86vm.so.1
+        0x00007fd48e36bd60  0x00007fd48e3d2c66  Yes         /usr/lib64/libstdc++.so.6
+        0x00007fd48e0fd9a0  0x00007fd48e10d558  Yes         /usr/lib64/libgcc_s.so.1
+        (*): Shared library is missing debugging information.
