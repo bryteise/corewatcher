@@ -217,7 +217,7 @@ static void submit_queue_with_url(struct oops *queue, char *wsubmit_url, char *p
 
 		/* set up the POST data */
 		curl_formadd(&post, &last,
-			CURLFORM_COPYNAME, "data",
+			CURLFORM_COPYNAME, "crash",
 			CURLFORM_COPYCONTENTS, oops->text, CURLFORM_END);
 
 

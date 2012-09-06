@@ -90,7 +90,6 @@ extern char *build_release;
 extern char *core_folder;
 extern int url_count;
 extern int do_unlink;
-extern int private_report;
 
 /* corewatcher.c */
 extern int testmode;

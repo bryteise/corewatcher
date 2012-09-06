@@ -60,65 +60,13 @@ static pthread_mutex_t gdb_mtx = PTHREAD_MUTEX_INITIALIZER;
 static int tail = 0;
 static int head = 0;
 
-static long int get_time(char *filename)
-{
-	struct stat st;
-	if (stat(filename, &st)) {
-		return 0;
-	}
-	return st.st_mtim.tv_sec;
-}
-
-static char *get_build(void)
-{
-	FILE *file = NULL;
-	char *line = NULL, *c = NULL, *build = NULL;
-	size_t dummy = 0;
-
-	file = fopen(build_release, "r");
-	if (!file) {
-		line = strdup("Unknown");
-		return line;
-	}
-
-	while (!feof(file)) {
-		if (getline(&line, &dummy, file) == -1)
-			break;
-		if ((c = strstr(line, "BUILD"))) {
-			c += 7;
-			if (c >= line + strlen(line))
-				break;
-
-			/* glibc does things that scare valgrind */
-			/* ignore valgrind error for the line below */
-			build = strdup(c);
-			if (!build)
-				break;
-
-			c = strchr(build, '\n');
-			if (c) *c = 0;
-
-			free(line);
-			fclose(file);
-			return build;
-		}
-	}
-
-	fclose(file);
-	free(line);
-
-	line = strdup("Unknown");
-
-	return line;
-}
-
 static char *get_release(void)
 {
 	FILE *file = NULL;
 	char *line = NULL;
 	size_t dummy = 0;
 
-	file = fopen("/etc/issue", "r");
+	file = fopen("/etc/os-release", "r");
 	if (!file) {
 		line = strdup("Unknown");
 		return line;
@@ -127,14 +75,14 @@ static char *get_release(void)
 	while (!feof(file)) {
 		if (getline(&line, &dummy, file) == -1)
 			break;
-		if (strstr(line, "release")) {
+		if (strstr(line, "VERSION_ID=")) {
 			char *c = NULL;
 
 			c = strchr(line, '\n');
 			if (c) *c = 0;
 
 			fclose(file);
-			return line;
+			return &line[11];
 		}
 	}
 
@@ -182,381 +130,6 @@ cleanup_set_wrapped_app:
 	free(abs_path);
 	free(dline);
 	return appfile;
-}
-
-static GList *get_core_file_list(char *appfile, char *dump_text)
-{
-	char *txt = NULL, *part = NULL, *c = NULL;
-	char delim[] = " ',`;\n\"";
-	GList *files = NULL;
-
-	if (!(txt = strdup(dump_text)))
-		return NULL;
-
-	part = strtok(txt, delim);
-	while(part) {
-		if (strstr(part, "/")) {
-			if (!(c = strdup(part)))
-				continue;
-			files = g_list_prepend(files, c);
-		}
-		part = strtok(NULL, delim);
-	}
-	if ((c = strdup(appfile))) {
-		files = g_list_prepend(files, c);
-	}
-
-	free(txt);
-	return files;
-}
-
-static char *run_cmd(char *cmd)
-{
-	char *line = NULL, *str = NULL;
-	char *c = NULL;
-	FILE *file = NULL;
-	size_t size = 0;
-
-	if (!cmd)
-		return NULL;
-	file = popen(cmd, "r");
-	if (!file)
-		return NULL;
-
-	if (getline(&line, &size, file) != -1) {
-		c = strchr(line, '\n');
-		if (c) *c = 0;
-		str = strdup(line);
-	}
-	free(line);
-	pclose(file);
-
-	return str;
-}
-
-static char *lookup_part(char *check, char *line)
-{
-	char *c = NULL, *c1 = NULL, *c2 = NULL;
-
-	if (!check || !line)
-		return NULL;
-
-	if (strncmp(check, line, strlen(check)))
-		return NULL;
-	if (!(c1 = strstr(line, ":")))
-		return NULL;
-	c1 += 2;
-	if (c1 >= line + strlen(line))
-		return NULL;
-	if (!(c2 = strstr(c1, " ")))
-		return NULL;
-	*c2 = 0;
-	if (!(c = strdup(c1)))
-		return NULL;
-	return c;
-}
-
-static int append(char **s, char *e, char *a)
-{
-	char *t = NULL;
-	int r = 0;
-
-	if (!s || !(*s) || !e || !a)
-		return -1;
-	t = *s;
-	*s = NULL;
-	r = asprintf(s, "%s%s%s", t, a, e);
-	if (r == -1) {
-		*s = t;
-		return -1;
-	} else if (((unsigned int)r) != strlen(t) + strlen(a) + strlen(e)) {
-		free(*s);
-		*s = t;
-		return -1;
-	}
-	free(t);
-	return 0;
-}
-
-static void build_times(char *cmd, GHashTable *ht_p2p, GHashTable *ht_p2d)
-{
-	FILE *file = NULL;
-	int ret = 0, i = 0;
-	char *line = NULL, *dline = NULL, *pack = NULL, *date = NULL;
-	char *nm = NULL, *vr = NULL, *rl = NULL, *c = NULL, *p = NULL;
-	size_t size = 0;
-	char name[] = "Name";
-	char version[] = "Version";
-	char release[] = "Release";
-	char delim[] = " ";
-
-	file = popen(cmd, "r");
-	if (!file)
-		return;
-	while (!feof(file)) {
-		pack = nm = vr = rl = NULL;
-		if (getline(&line, &size, file) == -1)
-			goto cleanup;
-		if (!(nm = lookup_part(name, line)))
-			goto cleanup;
-		if (getline(&line, &size, file) == -1)
-			goto cleanup;
-		if (!(vr = lookup_part(version, line)))
-			goto cleanup;
-		if (getline(&line, &size, file) == -1)
-			goto cleanup;
-		if (!(rl = lookup_part(release, line)))
-			goto cleanup;
-		ret = asprintf(&pack, "%s-%s-%s", nm, vr, rl);
-		if (ret == -1)
-			goto cleanup;
-		else if (((unsigned int)ret) != strlen(nm) + strlen(vr) + strlen(rl) + 2)
-			goto cleanup;
-		/* using p instead of pack to keep freeing the hashtables uniform */
-		if (!(p = g_hash_table_lookup(ht_p2p, pack)))
-			goto cleanup;
-
-		while (!feof(file)) {
-			c = NULL;
-			if (getline(&dline, &size, file) == -1)
-				goto cleanup;
-			if (strncmp("*", dline, 1))
-				continue;
-			/* twice to skip the leading '*' */
-			c = strtok(dline, delim);
-			if (!c)	continue;
-			c = strtok(NULL, delim);
-			if (!c) continue;
-
-			if (!(date = strdup(c)))
-				goto cleanup;
-
-			for (i = 0; i < 3; i++) {
-				c = strtok(NULL, delim);
-				if (!c) goto cleanup;
-				if ((ret = append(&date, c, " ")) < 0)
-					goto cleanup;
-			}
-			g_hash_table_insert(ht_p2d, p, date);
-			date = NULL;
-			break;
-		}
-	cleanup:
-		free(nm);
-		free(vr);
-		free(rl);
-		free(pack);
-		free(date);
-		date = NULL;
-	}
-	pclose(file);
-	free(dline);
-	free(line);
-
-	return;
-}
-
-static char *get_package_info(char *appfile, char *dump_text)
-{
-	GList *l = NULL, *files = NULL, *hfiles = NULL, *tmpl = NULL;
-	GHashTable *ht_f2f = NULL, *ht_f2p = NULL, *ht_p2p = NULL, *ht_p2d = NULL;
-	char *c1 = NULL, *cmd = NULL, *out = NULL;
-	char find_pkg[] = "rpm -qf --queryformat \"%{NAME}-%{VERSION}-%{RELEASE}\" ";
-	char find_date[] = "rpm -qi --changelog";
-	char dev_null[] = "2>/dev/null";
-	int r = 0;
-
-	if (!(ht_f2f = g_hash_table_new(g_str_hash, g_str_equal)))
-		goto clean_up;
-	if (!(ht_f2p = g_hash_table_new_full(g_str_hash, g_str_equal, NULL, free)))
-		goto clean_up;
-	if (!(ht_p2p = g_hash_table_new(g_str_hash, g_str_equal)))
-		goto clean_up;
-	if (!(ht_p2d = g_hash_table_new_full(g_str_hash, g_str_equal, NULL, free)))
-		goto clean_up;
-	if (!(files = get_core_file_list(appfile, dump_text)))
-		goto clean_up;
-
-	/* get files in hash to remove duplicates */
-	for (l = files; l; l = l->next) {
-		if (!g_hash_table_lookup(ht_f2f, l->data))
-			g_hash_table_insert(ht_f2f, l->data, l->data);
-	}
-
-	hfiles = g_hash_table_get_keys(ht_f2f);
-
-	/* run through files one at a time in case some files don't have packages and it */
-	/* isn't guaranteed we will see the error correspond with the file we are testing */
-	for (l = hfiles; l; l = l->next) {
-		r = asprintf(&cmd, "%s%s %s", find_pkg, (char *)l->data, dev_null);
-		if (r == -1)
-			goto clean_up;
-		else if (((unsigned int)r) != sizeof(find_pkg) + sizeof((char *)l->data) + sizeof(dev_null) + 1) {
-			free(cmd);
-			goto clean_up;
-		}
-		c1 = run_cmd(cmd);
-		free(cmd);
-		cmd = NULL;
-
-		if (c1 && strlen(c1) > 0) {
-			g_hash_table_insert(ht_f2p, l->data, c1);
-		} else {
-			g_hash_table_insert(ht_f2p, l->data, NULL);
-			free(c1);
-		}
-	}
-
-	tmpl = g_hash_table_get_values(ht_f2p);
-	for (l = tmpl; l; l = l->next) {
-		if (l->data && !g_hash_table_lookup(ht_p2p, l->data))
-			g_hash_table_insert(ht_p2p, l->data, l->data);
-	}
-
-	g_list_free(tmpl);
-	tmpl = NULL;
-	tmpl = g_hash_table_get_keys(ht_p2p);
-	cmd = strdup(find_date);
-	if (!cmd)
-		goto clean_up;
-	for (l = tmpl; l; l = l->next) {
-		append(&cmd, l->data, " ");
-	}
-	g_list_free(tmpl);
-	tmpl = NULL;
-	build_times(cmd, ht_p2p, ht_p2d);
-	free(cmd);
-
-	if (!(out = strdup("")))
-		goto clean_up;
-	for (l = hfiles; l; l = l->next) {
-		if (append(&out, l->data, "") < 0)
-			continue;
-
-		if (!(c1 = g_hash_table_lookup(ht_f2p, l->data))) {
-			if (append(&out, "\n", "") < 0)
-				goto clean_out;
-			continue;
-		} else
-			if (append(&out, c1, ":") < 0)
-				goto clean_out;
-
-		if (!(c1 = g_hash_table_lookup(ht_p2d, c1))) {
-			if (append(&out, "\n", "") < 0)
-				goto clean_out;
-			continue;
-		} else
-			if (append(&out, c1, ":") < 0)
-				goto clean_out;
-
-		if (append(&out, "\n", "") < 0)
-			goto clean_out;
-	}
-	goto clean_up;
-
-clean_out:
-	free(out);
-	out = NULL;
-
-clean_up:
-	if (ht_p2d)
-		g_hash_table_destroy(ht_p2d);
-	if (ht_p2p)
-		g_hash_table_destroy(ht_p2p);
-	if (ht_f2p)
-		g_hash_table_destroy(ht_f2p);
-	if (ht_f2f)
-		g_hash_table_destroy(ht_f2f);
-	if (files)
-		g_list_free_full(files, free);
-	if (hfiles)
-		g_list_free(hfiles);
-	if (tmpl)
-		g_list_free(tmpl);
-
-	return out;
-}
-
-static char *signame(int sig)
-{
-	switch(sig) {
-	case SIGINT:  return "SIGINT";
-	case SIGILL:  return "SIGILL";
-	case SIGABRT: return "SIGABRT";
-	case SIGFPE:  return "SIGFPE";
-	case SIGSEGV: return "SIGSEGV";
-	case SIGPIPE: return "SIGPIPE";
-	case SIGBUS:  return "SIGBUS";
-	default:      return strsignal(sig);
-	}
-	return NULL;
-}
-
-static char *get_kernel(void)
-{
-	char *line = NULL;
-	FILE *file = NULL;
-	int ret = 0;
-	size_t size = 0;
-	char command[] = "uname -r";
-
-	file = popen(command, "r");
-
-	if (!file) {
-		line = strdup("Unknown");
-		return line;
-	}
-
-	ret = getline(&line, &size, file);
-	if (!size || ret <= 0) {
-		pclose(file);
-		line = strdup("Unknown");
-		return line;
-	}
-
-	size = strlen(line);
-	line[size - 1] = '\0';
-
-	pclose(file);
-	return line;
-}
-
-static char *build_core_header(char *appfile, char *corefile, char * processed_fullpath)
-{
-	int ret = 0;
-	char *result = NULL;
-	char *build = get_build();
-	char *release = get_release();
-	char *kernel = get_kernel();
-	long int time = get_time(corefile);
-
-	ret = asprintf(&result,
-		       "analyzer: corewatcher-gdb\n"
-		       "coredump: %s\n"
-		       "executable: %s\n"
-		       "kernel: %s\n"
-		       "reason: Process %s was killed by signal %d (%s)\n"
-		       "release: %s\n"
-		       "build: %s\n"
-		       "time: %lu\n"
-		       "uid: %d\n",
-		       processed_fullpath,
-		       appfile,
-		       kernel,
-		       appfile, sig, signame(sig),
-		       release,
-		       build,
-		       time,
-		       uid);
-
-	free(kernel);
-	free(release);
-	free(build);
-
-	if (ret == -1)
-		result = strdup("Unknown");
-
-	return result;
 }
 
 /*
@@ -699,15 +272,18 @@ static char *get_appfile(char *fullpath)
 /*
  * Use GDB to extract backtrace information from corefile
  */
-static struct oops *extract_core(char *fullpath, char *appfile, char *processed_fullpath)
+static struct oops *extract_core(char *fullpath, char *appfile)
 {
 	struct oops *oops = NULL;
 	int ret = 0;
-	char *command = NULL, *h1 = NULL, *h2 = NULL, *c1 = NULL, *c2 = NULL, *line = NULL, *text = NULL, *at = NULL;
+	char *command = NULL, *h1 = NULL, *c1 = NULL, *c2 = NULL, *line = NULL, *text = NULL, *at = NULL;
+	char *m1 = NULL, *m2 = NULL;
 	FILE *file = NULL;
-	char *private = private_report ? "private: yes\n" : "";
+	char *badchar = NULL;
+	char *release = get_release();
+	int parsing_maps = 0;
 
-	if (asprintf(&command, "LANG=C gdb --batch -f %s %s -x /var/lib/corewatcher/gdb.command 2> /dev/null", appfile, fullpath) == -1)
+	if (asprintf(&command, "LANG=C gdb --batch -f %s %s -x /etc/corewatcher/gdb.command 2> /dev/null", appfile, fullpath) == -1)
 		return NULL;
 
 	if ((at = wrapper_scan(command))) {
@@ -715,59 +291,83 @@ static struct oops *extract_core(char *fullpath, char *appfile, char *processed_
 		appfile = at;
 	}
 
-	h1 = build_core_header(appfile, fullpath, processed_fullpath);
+	ret = asprintf(&h1,
+		       "cmdline: %s\n"
+		       "release: %s\n",
+		       appfile,
+		       release);
+	free(release);
+	if (ret == -1)
+		h1 = strdup("Unknown");
 
 	file = popen(command, "r");
 
 	while (file && !feof(file)) {
 		size_t size = 0;
 
-		c2 = c1;
 		free(line);
+		line = NULL;
 		ret = getline(&line, &size, file);
 		if (!size)
 			break;
 		if (ret == -1)
 			break;
 
-		if (strstr(line, "no debugging symbols found")) {
-			continue;
-		}
-		if (strstr(line, "reason: ")) {
-			continue;
+		if (strncmp(line, "From", 4) == 0) {
+			parsing_maps = 1;
+			/*continue;*/
 		}
 
-		if (c1) {
-			c1 = NULL;
-			if (asprintf(&c1, "%s%s", c2, line) == -1)
+		if (!parsing_maps) { /* parsing backtrace */
+			c2 = c1;
+			if (line[0] != '#')
 				continue;
-			free(c2);
-		} else {
-			/* keep going even if asprintf has errors */
-			ret = asprintf(&c1, "%s", line);
+fixup:			/* gdb outputs some 0x1a's which break XML */
+			badchar = memchr(line, 0x1a, size);
+			if (badchar) {
+				*badchar = '\n';
+				goto fixup;
+			}
+
+			if (c1) {
+				c1 = NULL;
+				if (asprintf(&c1, "%s        %s", c2, line) == -1)
+					continue;
+				free(c2);
+			} else {
+				/* keep going even if asprintf has errors */
+				ret = asprintf(&c1, "        %s", line);
+			}
+		} else { /* parsing maps */
+			m2 = m1;
+			if (m1) {
+				m1 = NULL;
+				if (asprintf(&m1, "%s        %s", m2, line) == -1)
+					continue;
+				free(m2);
+			} else {
+				/* keep going even if asprintf has errors */
+				ret = asprintf(&m1, "        %s", line);
+			}
 		}
 	}
 	if (line)
 		free(line);
-	pclose(file);
+	if (file)
+		pclose(file);
 	free(command);
-
-	if (!(h2 = get_package_info(appfile, c1)))
-		h2 = strdup("Unknown");
 
 	ret = asprintf(&text,
 		       "%s"
-		       "package-info\n-----\n"
+		       "backtrace: |\n"
 		       "%s"
-		       "\n-----\n"
-		       "%s"
-		       "\nbacktrace\n-----\n"
+		       "maps: |\n"
 		       "%s",
-		       h1, h2, private, c1);
+		       h1, c1, m1);
 	if (ret == -1)
 		text = NULL;
+
 	free(h1);
-	free(h2);
 	free(c1);
 
 	oops = malloc(sizeof(struct oops));
@@ -895,7 +495,7 @@ void remove_pid_from_hash(char *fullpath, GHashTable *ht)
  * Common function for processing core
  * files to generate oops structures
  */
-static struct oops *process_common(char *fullpath, char *processed_fullpath)
+static struct oops *process_common(char *fullpath)
 {
 	struct oops *oops = NULL;
 	char *appname = NULL, *appfile = NULL;
@@ -910,7 +510,7 @@ static struct oops *process_common(char *fullpath, char *processed_fullpath)
 	}
 	free(appname);
 
-	if (!(oops = extract_core(fullpath, appfile, processed_fullpath))) {
+	if (!(oops = extract_core(fullpath, appfile))) {
 		free(appfile);
 		return NULL;
 	}
@@ -953,7 +553,7 @@ static void *process_new(void __unused *vp)
 	if (!(procfn = replace_name(fullpath, ".to-process", ".processed")))
 		goto clean_process_new;
 
-	if (!(oops = process_common(fullpath, procfn)))
+	if (!(oops = process_common(fullpath)))
 		goto clean_process_new;
 
 	if (!(oops->detail_filename = get_core_filename(corefn, "txt")))
@@ -1021,7 +621,7 @@ static void *process_old(void __unused *vp)
 	if (!(corefn = strip_directories(fullpath)))
 		goto clean_process_old;
 
-	if (!(oops = process_common(fullpath, fullpath)))
+	if (!(oops = process_common(fullpath)))
 		goto clean_process_old;
 
 	if (!(oops->detail_filename = get_core_filename(corefn, "txt")))
@@ -1146,6 +746,10 @@ int scan_corefolders(void __unused *unused)
 	char *fullpath = NULL, *appfile = NULL;
 	char tmp_folder[] = "/tmp/";
 	int r = 0;
+
+	pthread_mutex_init(&core_status.processing_mtx, NULL);
+	pthread_mutex_init(&core_status.queued_mtx, NULL);
+	pthread_mutex_init(&core_status.asked_mtx, NULL);
 
 	dir = opendir(tmp_folder);
 	if (!dir)
