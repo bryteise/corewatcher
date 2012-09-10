@@ -1,0 +1,75 @@
+cmdline: /usr/bin/mate-calc
+release: 1176
+backtrace: |
+        #0  g_logv (log_domain=0x7f3d296fbfe1 "GLib-GIO", log_level=G_LOG_LEVEL_ERROR, format=<optimized out>, args=args@entry=0x7fff7ea01e58) at gmessages.h:101
+        #0  g_logv (log_domain=0x7f3d296fbfe1 "GLib-GIO", log_level=G_LOG_LEVEL_ERROR, format=<optimized out>, args=args@entry=0x7fff7ea01e58) at gmessages.h:101
+        #1  0x00007f3d28941cfd in g_log (log_domain=log_domain@entry=0x7f3d296fbfe1 "GLib-GIO", log_level=log_level@entry=G_LOG_LEVEL_ERROR, format=format@entry=0x7f3d29717dc0 "Settings schema '%s' is not installed\n") at gmessages.c:1003
+        #2  0x00007f3d296b50ee in g_settings_set_property (object=<optimized out>, prop_id=<optimized out>, value=<optimized out>, pspec=<optimized out>) at gsettings.c:492
+        #3  0x00007f3d293c2098 in object_set_property (nqueue=0xf90e60, value=0xf96408, pspec=0xf95ca0, object=0xf95540) at gobject.c:1357
+        #4  g_object_constructor (type=<optimized out>, n_construct_properties=<optimized out>, construct_params=<optimized out>) at gobject.c:1868
+        #5  0x00007f3d293c3562 in g_object_newv (object_type=object_type@entry=16328736, n_parameters=n_parameters@entry=1, parameters=parameters@entry=0xf96400) at gobject.c:1718
+        #6  0x00007f3d293c3d5e in g_object_new_valist (object_type=object_type@entry=16328736, first_property_name=first_property_name@entry=0x7f3d297178f7 "schema-id", var_args=var_args@entry=0x7fff7ea02178) at gobject.c:1835
+        #7  0x00007f3d293c40b4 in g_object_new (object_type=16328736, first_property_name=first_property_name@entry=0x7f3d297178f7 "schema-id") at gobject.c:1550
+        #8  0x00007f3d296b5142 in g_settings_new (schema_id=schema_id@entry=0x426d23 "org.mate.mate-calc") at gsettings.c:869
+        #9  0x000000000040b9d5 in main (argc=1, argv=0x7fff7ea023b8) at mate-calc.c:225
+maps: |
+        From                To                  Syms Read   Shared Object Library
+                                                No          linux-vdso.so.1
+        0x00007f3d2af09f00  0x00007f3d2b172cf0  Yes         /usr/lib64/libgtk-x11-2.0.so.0
+        0x00007f3d2ac0b420  0x00007f3d2ac60cb8  Yes         /usr/lib64/libgdk-x11-2.0.so.0
+        0x00007f3d2a9d4030  0x00007f3d2a9e0290  Yes         /usr/lib64/libatk-1.0.so.0
+        0x00007f3d2a7bc490  0x00007f3d2a7c45bc  Yes         /usr/lib64/libpangoft2-1.0.so.0
+        0x00007f3d2a5acf20  0x00007f3d2a5b1d14  Yes         /usr/lib64/libpangocairo-1.0.so.0
+        0x00007f3d2a38ea80  0x00007f3d2a3a0018  Yes         /usr/lib64/libgdk_pixbuf-2.0.so.0
+        0x00007f3d2a08bcc0  0x00007f3d2a14d41c  Yes         /usr/lib64/libcairo.so.2
+        0x00007f3d29e3b680  0x00007f3d29e5afe0  Yes         /usr/lib64/libpango-1.0.so.0
+        0x00007f3d29ba9a90  0x00007f3d29c05fa4  Yes         /usr/lib64/libfreetype.so.6
+        0x00007f3d29969390  0x00007f3d299866d0  Yes         /usr/lib64/libfontconfig.so.1
+        0x00007f3d2962f3b0  0x00007f3d296fbfa0  Yes         /usr/lib64/libgio-2.0.so.0
+        0x00007f3d293b7f60  0x00007f3d293e7890  Yes         /usr/lib64/libgobject-2.0.so.0
+        0x00007f3d29070c30  0x00007f3d2915f8a0  Yes         /usr/lib64/libxml2.so.2
+        0x00007f3d28e42200  0x00007f3d28e430f4  Yes         /usr/lib64/libgmodule-2.0.so.0
+        0x00007f3d28c3b2f0  0x00007f3d28c3e76c  Yes         /lib64/librt.so.1
+        0x00007f3d2890ba20  0x00007f3d289c533c  Yes         /usr/lib64/libglib-2.0.so.0
+        0x00007f3d285fd5c0  0x00007f3d286669fc  Yes         /lib64/libm.so.6
+        0x00007f3d283e27a0  0x00007f3d283edbb4  Yes         /lib64/libpthread.so.0
+        0x00007f3d28053180  0x00007f3d28196d60  Yes         /lib64/libc.so.6
+        0x00007f3d27e25720  0x00007f3d27e2f984  Yes         /usr/lib64/libXext.so.6
+        0x00007f3d27c1ab10  0x00007f3d27c20978  Yes         /usr/lib64/libXrender.so.1
+        0x00007f3d278fac90  0x00007f3d279835e0  Yes         /usr/lib64/libX11.so.6
+        0x00007f3d276dbbd0  0x00007f3d276dc5ec  Yes         /usr/lib64/libXdamage.so.1
+        0x00007f3d274d7580  0x00007f3d274d9c8c  Yes         /usr/lib64/libXfixes.so.3
+        0x00007f3d2727b5a0  0x00007f3d272beacc  Yes         /usr/lib64/libharfbuzz.so.0
+        0x00007f3d2704f040  0x00007f3d2706a758  Yes         /usr/lib64/libpng15.so.15
+        0x00007f3d26dc1ba0  0x00007f3d26e34d2c  Yes         /usr/lib64/libpixman-1.so.0
+        0x00007f3d26ba29c0  0x00007f3d26bb104c  Yes         /usr/lib64/libEGL.so.1
+        0x00007f3d2699bed0  0x00007f3d2699c9f0  Yes         /lib64/libdl.so.2
+        0x00007f3d26799ab0  0x00007f3d2679a0f8  Yes         /usr/lib64/libxcb-shm.so.0
+        0x00007f3d265934d0  0x00007f3d26595f90  Yes         /usr/lib64/libxcb-render.so.0
+        0x00007f3d2637b950  0x00007f3d2638753c  Yes         /usr/lib64/libxcb.so.1
+        0x00007f3d2615f1c0  0x00007f3d2616b42c  Yes         /usr/lib64/libz.so.1
+        0x00007f3d25f17ae0  0x00007f3d25f49874  Yes         /usr/lib64/libGL.so.1
+        0x00007f3d25cee6d0  0x00007f3d25cfa110  Yes         /usr/lib64/libbz2.so.1.0
+        0x00007f3d25ac7e10  0x00007f3d25ae1230  Yes         /usr/lib64/libexpat.so.1
+        0x00007f3d258c3690  0x00007f3d258c37ec  Yes         /usr/lib64/libgthread-2.0.so.0
+        0x00007f3d256bc8d0  0x00007f3d256c1144  Yes         /usr/lib64/libffi.so.6
+        0x00007f3d254a6a80  0x00007f3d254b538c  Yes         /lib64/libresolv.so.2
+        0x00007f3d252839b0  0x00007f3d252988e0  Yes         /usr/lib64/liblzma.so.5
+        0x00007f3d2b4dbaf0  0x00007f3d2b4f6379  Yes         /lib64/ld-linux-x86-64.so.2
+        0x00007f3d25052ad0  0x00007f3d250664f0  Yes         /usr/lib64/libicule.so.49
+        0x00007f3d24d159c0  0x00007f3d24dcd1f8  Yes         /usr/lib64/libicuuc.so.49
+                                                Yes (*)     /usr/lib64/libicudata.so.49
+        0x00007f3d237a15b0  0x00007f3d237a16d0  Yes         /usr/lib64/libX11-xcb.so.1
+        0x00007f3d2359e750  0x00007f3d2359f3f4  Yes         /usr/lib64/libxcb-dri2.so.0
+        0x00007f3d233994d0  0x00007f3d2339acd0  Yes         /usr/lib64/libxcb-xfixes.so.0
+        0x00007f3d23194f40  0x00007f3d231957ac  Yes         /usr/lib64/libxcb-shape.so.0
+        0x00007f3d22f868d0  0x00007f3d22f8e6c0  Yes         /usr/lib64/libudev.so.1
+        0x00007f3d22d79360  0x00007f3d22d7e4bc  Yes         /usr/lib64/libdrm.so.2
+        0x00007f3d22b73f70  0x00007f3d22b74c74  Yes         /usr/lib64/libXau.so.6
+        0x00007f3d2296f340  0x00007f3d22970e14  Yes         /usr/lib64/libXdmcp.so.6
+        0x00007f3d22751860  0x00007f3d2275a358  Yes         /usr/lib64/libglapi.so.0
+        0x00007f3d2253bd70  0x00007f3d22541edc  Yes         /usr/lib64/libxcb-glx.so.0
+        0x00007f3d2232dfa0  0x00007f3d22330a4c  Yes         /usr/lib64/libXxf86vm.so.1
+        0x00007f3d2207fd60  0x00007f3d220e6c66  Yes         /usr/lib64/libstdc++.so.6
+        0x00007f3d21e119a0  0x00007f3d21e21558  Yes         /usr/lib64/libgcc_s.so.1
+        (*): Shared library is missing debugging information.
