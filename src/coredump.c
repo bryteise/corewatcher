@@ -328,7 +328,7 @@ static struct oops *extract_core(char *fullpath, char *appfile)
 fixup:			/* gdb outputs some 0x1a's which break XML */
 			badchar = memchr(line, 0x1a, size);
 			if (badchar) {
-				*badchar = '\n';
+				*badchar = ' ';
 				goto fixup;
 			}
 
