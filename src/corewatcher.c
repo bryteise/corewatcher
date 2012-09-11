@@ -35,6 +35,9 @@
 #include <asm/unistd.h>
 #include <pthread.h>
 #include <curl/curl.h>
+#include <dirent.h>
+#include <sys/stat.h>
+#include <errno.h>
 
 #include <glib.h>
 
@@ -77,6 +80,7 @@ int main(int argc, char**argv)
 	int godaemon = 1;
 	int debug = 0;
 	int j = 0;
+	DIR *dir = NULL;
 
 	core_status.asked_oops = g_hash_table_new_full(g_str_hash, g_str_equal, free, free);
 	core_status.processing_oops = g_hash_table_new_full(g_str_hash, g_str_equal, free, NULL);
@@ -102,6 +106,30 @@ int main(int argc, char**argv)
 		perror("Can not set schedule priority");
 
 	read_config_file("/etc/corewatcher/corewatcher.conf");
+
+	/* insure our directories exist */
+	dir = opendir(core_folder);
+	if (!dir) {
+		if (!mkdir(core_folder, S_IRWXU | S_IRWXG | S_IRWXO)
+			&& errno != EEXIST) {
+			return 1;
+		}
+		dir = opendir(core_folder);
+		if (!dir)
+			return 1;
+	}
+	closedir(dir);
+	dir = opendir(processed_folder);
+	if (!dir) {
+		if (!mkdir(processed_folder, S_IRWXU)
+			&& errno != EEXIST) {
+			return 1;
+		}
+		dir = opendir(processed_folder);
+		if (!dir)
+			return 1;
+	}
+	closedir(dir);
 
 	while (1) {
 		int c;

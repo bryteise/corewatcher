@@ -34,7 +34,6 @@
 
 char *submit_url[MAX_URLS];
 char *build_release = NULL;
-char *core_folder = NULL;
 int url_count = 0;
 
 void read_config_file(char *filename)
@@ -80,15 +79,6 @@ void read_config_file(char *filename)
 				}
 			}
 		}
-		c = strstr(line, "core-folder");
-		if (c) {
-			c += 11;
-			if (c < line_end) {
-				c = strstr(c, "/");
-				if (c)
-					core_folder = strdup(c);
-			}
-		}
 	}
 
 	fclose(file);
@@ -101,8 +91,6 @@ void read_config_file(char *filename)
 		else
 			url_count++;
 	}
-	if (!core_folder)
-		core_folder = strdup("/var/lib/corewatcher/");
 
 	/* Distribution editorial choice, not end-user choice: */
 	build_release = strdup("/etc/os-release");

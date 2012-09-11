@@ -80,6 +80,8 @@ extern char *get_core_filename(char *filename, char *ext);
 extern void remove_pid_from_hash(char *fullpath, GHashTable *ht);
 extern int uid;
 extern int sig;
+extern const char *core_folder;
+extern const char *processed_folder;
 
 /* configfile.c */
 extern void read_config_file(char *filename);
@@ -87,7 +89,6 @@ extern int opted_in;
 extern int allow_distro_to_pass_on;
 extern char *submit_url[MAX_URLS];
 extern char *build_release;
-extern char *core_folder;
 extern int url_count;
 
 /* corewatcher.c */

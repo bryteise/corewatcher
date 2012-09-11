@@ -45,6 +45,9 @@
 int uid = 0;
 int sig = 0;
 
+const char *core_folder = "/var/lib/corewatcher/";
+const char *processed_folder = "/var/lib/corewatcher/processed/";
+
 /* Always pick up the processing_mtx and then the
    processing_queue_mtx, reverse for setting down */
 /* Always pick up the gdb_mtx and then the
@@ -202,33 +205,27 @@ char *strip_directories(char *fullpath)
 }
 
 /*
- * Move corefile from /tmp to core_folder.
- * Add extension if given and attempt to create core_folder.
+ * Move corefile from core_folder to processed_folder subdir.
+ * Add extension if given and attempt to create directories if needed.
  */
 int move_core(char *fullpath, char *extension)
 {
-	char *corefn = NULL, newpath[8192];
+	char *corefilename = NULL, newpath[8192];
 
-	if (!core_folder || !fullpath)
+	if (!fullpath)
 		return -1;
 
-	if (!(corefn = strip_directories(fullpath))) {
+	if (!(corefilename = strip_directories(fullpath))) {
 		unlink(fullpath);
 		return -ENOMEM;
 	}
 
-	if (!mkdir(core_folder, S_IRWXU | S_IRWXG | S_IRWXO)
-	    && errno != EEXIST) {
-		free(corefn);
-		return -errno;
-	}
-
 	if (extension)
-		snprintf(newpath, 8192, "%s%s.%s", core_folder, corefn, extension);
+		snprintf(newpath, 8192, "%s%s.%s", processed_folder, corefilename, extension);
 	else
-		snprintf(newpath, 8192, "%s%s", core_folder, corefn);
+		snprintf(newpath, 8192, "%s%s", processed_folder, corefilename);
 
-	free(corefn);
+	free(corefilename);
 	rename(fullpath, newpath);
 
 	return 0;
@@ -237,7 +234,7 @@ int move_core(char *fullpath, char *extension)
 /*
  * Finds the full path for the application that crashed,
  * and depending on what opted_in was configured as will:
- * opted_in 2 (always submit) -> move file to core_folder
+ * opted_in 2 (always submit) -> move file to processed_folder
  * to be processed further
  * opted_in 1 (ask user) -> ask user if we should submit
  * the crash and add to asked_oops hash so we don't get
@@ -413,13 +410,13 @@ char *get_core_filename(char *filename, char *ext)
 
 	if (ext) {
 		/* causes valgrind whining because we copy from middle of a string */
-		if ((asprintf(&detail_filename, "%s%s.%s", core_folder, pid, ext)) == -1) {
+		if ((asprintf(&detail_filename, "%s%s.%s", processed_folder, pid, ext)) == -1) {
 			free(pid);
 			return NULL;
 		}
 	} else {
 		/* causes valgrind whining because we copy from middle of a string */
-		if ((asprintf(&detail_filename, "%s%s", core_folder, pid)) == -1) {
+		if ((asprintf(&detail_filename, "%s%s", processed_folder, pid)) == -1) {
 			free(pid);
 			return NULL;
 		}
@@ -747,18 +744,17 @@ int scan_corefolders(void __unused *unused)
 	DIR *dir = NULL;
 	struct dirent *entry = NULL;
 	char *fullpath = NULL, *appfile = NULL;
-	char tmp_folder[] = "/tmp/";
 	int r = 0;
 
 	pthread_mutex_init(&core_status.processing_mtx, NULL);
 	pthread_mutex_init(&core_status.queued_mtx, NULL);
 	pthread_mutex_init(&core_status.asked_mtx, NULL);
 
-	dir = opendir(tmp_folder);
+	/* scan for new crash data */
+	dir = opendir(core_folder);
 	if (!dir)
 		return 1;
-
-	fprintf(stderr, "+ scanning %s...\n", tmp_folder);
+	fprintf(stderr, "+ scanning %s...\n", core_folder);
 	while(1) {
 		free(fullpath);
 		fullpath = NULL;
@@ -772,11 +768,11 @@ int scan_corefolders(void __unused *unused)
 			continue;
 
 		/* matched core_#### where #### is the pid of the process */
-		r = asprintf(&fullpath, "%s%s", tmp_folder, entry->d_name);
+		r = asprintf(&fullpath, "%s%s", core_folder, entry->d_name);
 		if (r == -1) {
 			fullpath = NULL;
 			continue;
-		} else if (((unsigned int)r) != strlen(tmp_folder) + strlen(entry->d_name)) {
+		} else if (((unsigned int)r) != strlen(core_folder) + strlen(entry->d_name)) {
 			continue;
 		}
 		/* already found, waiting for response from user */
@@ -798,20 +794,11 @@ int scan_corefolders(void __unused *unused)
 	}
 	closedir(dir);
 
-	if (!core_folder)
+	/* scan for partially processed crash data */
+	dir = opendir(processed_folder);
+	if (!dir)
 		return 1;
-	dir = opendir(core_folder);
-	if (!dir) {
-		if (!mkdir(core_folder, S_IRWXU | S_IRWXG | S_IRWXO)
-	    		&& errno != EEXIST) {
-			return 1;
-		}
-		dir = opendir(core_folder);
-		if (!dir)
-			return 1;
-	}
-
-	fprintf(stderr, "+ scanning %s...\n", core_folder);
+	fprintf(stderr, "+ scanning %s...\n", processed_folder);
 	while(1) {
 		free(fullpath);
 		fullpath = NULL;
@@ -824,11 +811,11 @@ int scan_corefolders(void __unused *unused)
 		if (!strstr(entry->d_name, "process"))
 			continue;
 
-		r = asprintf(&fullpath, "%s%s", core_folder, entry->d_name);
+		r = asprintf(&fullpath, "%s%s", processed_folder, entry->d_name);
 		if (r == -1) {
 			fullpath = NULL;
 			continue;
-		} else if (((unsigned int)r) != strlen(core_folder) + strlen(entry->d_name)) {
+		} else if (((unsigned int)r) != strlen(processed_folder) + strlen(entry->d_name)) {
 			continue;
 		}
 
