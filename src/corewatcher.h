@@ -88,7 +88,6 @@ extern void read_config_file(char *filename);
 extern int opted_in;
 extern int allow_distro_to_pass_on;
 extern char *submit_url[MAX_URLS];
-extern char *build_release;
 extern int url_count;
 
 /* corewatcher.c */

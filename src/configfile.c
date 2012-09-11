@@ -33,7 +33,6 @@
 #include "corewatcher.h"
 
 char *submit_url[MAX_URLS];
-char *build_release = NULL;
 int url_count = 0;
 
 void read_config_file(char *filename)
@@ -91,7 +90,4 @@ void read_config_file(char *filename)
 		else
 			url_count++;
 	}
-
-	/* Distribution editorial choice, not end-user choice: */
-	build_release = strdup("/etc/os-release");
 }
