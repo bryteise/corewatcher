@@ -806,6 +806,9 @@ int scan_corefolders(void __unused *unused)
 	    		&& errno != EEXIST) {
 			return 1;
 		}
+		dir = opendir(core_folder);
+		if (!dir)
+			return 1;
 	}
 
 	fprintf(stderr, "+ scanning %s...\n", core_folder);
