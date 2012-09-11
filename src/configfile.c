@@ -109,9 +109,9 @@ void read_config_file(char *filename)
 	free(line);
 
 	if (!build_release)
-		build_release = strdup("/etc/meego-release");
+		build_release = strdup("/etc/os-release");
 	if (!url_count) {
-		submit_url[url_count] = strdup("http://crashdb.meego.com/submitbug.php");
+		submit_url[url_count] = strdup("http://kojibuild7.jf.intel.com/crash_submit/");
 		if (!submit_url[url_count])
 			submit_url[url_count] = NULL;
 		else
