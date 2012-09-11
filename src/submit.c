@@ -227,16 +227,12 @@ static void submit_queue_with_url(struct oops *queue, char *wsubmit_url, char *p
 
 		if (!result) {
 			char *nf = NULL;
-			if (do_unlink || (!(nf = replace_name(oops->filename, ".processed", ".submitted")))) {
-				unlink(oops->detail_filename);
-				unlink(oops->filename);
-			} else {
-				rename(oops->filename, nf);
-				pthread_mutex_lock(&core_status.processing_mtx);
-				remove_pid_from_hash(oops->filename, core_status.processing_oops);
-				pthread_mutex_unlock(&core_status.processing_mtx);
-				free(nf);
-			}
+			nf = replace_name(oops->filename, ".processed", ".submitted");
+			rename(oops->filename, nf);
+			pthread_mutex_lock(&core_status.processing_mtx);
+			remove_pid_from_hash(oops->filename, core_status.processing_oops);
+			pthread_mutex_unlock(&core_status.processing_mtx);
+			free(nf);
 
 			g_hash_table_remove(core_status.queued_oops, oops->filename);
 			count++;

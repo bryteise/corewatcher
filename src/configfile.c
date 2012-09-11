@@ -36,13 +36,12 @@ char *submit_url[MAX_URLS];
 char *build_release = NULL;
 char *core_folder = NULL;
 int url_count = 0;
-int do_unlink = 0;
 
 void read_config_file(char *filename)
 {
 	FILE *file = NULL;
-	char *line = NULL, *line_len = NULL;
-	size_t dummy = 0;
+	char *line = NULL, *line_end = NULL;
+	size_t line_len = 0;
 
 	file = fopen(filename, "r");
 	if (!file)
@@ -51,30 +50,26 @@ void read_config_file(char *filename)
 		char *c = NULL;
 		char *n = NULL;
 
-		if (getline(&line, &dummy, file) == -1)
+		if (getline(&line, &line_len, file) == -1)
 			break;
 
 		if (line[0] == '#')
 			continue;
 
 		/* we don't care about any lines that are too short to have config options */
-		if (dummy < 5)
+		if (line_len < 5)
 			continue;
 
 		/* remove trailing\n */
 		n = strchr(line, '\n');
 		if (n) *n = 0;
 
-		line_len = line + dummy;
-		c = strstr(line, "unlink");
-		if (c)
-			if (strstr(c, "yes"))
-				do_unlink = 1;
+		line_end = line + line_len;
 
 		c = strstr(line, "submit-url");
 		if (c && url_count <= MAX_URLS) {
 			c += 11;
-			if (c < line_len) {
+			if (c < line_end) {
 				c = strstr(c, "http:");
 				if (c) {
 					submit_url[url_count] = strdup(c);
@@ -88,7 +83,7 @@ void read_config_file(char *filename)
 		c = strstr(line, "release-info");
 		if (c) {
 			c += 11;
-			if (c < line_len) {
+			if (c < line_end) {
 				c = strstr(c, "/");
 				if (c)
 					build_release = strdup(c);
@@ -97,7 +92,7 @@ void read_config_file(char *filename)
 		c = strstr(line, "core-folder");
 		if (c) {
 			c += 11;
-			if (c < line_len) {
+			if (c < line_end) {
 				c = strstr(c, "/");
 				if (c)
 					core_folder = strdup(c);

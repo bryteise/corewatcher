@@ -89,7 +89,6 @@ extern char *submit_url[MAX_URLS];
 extern char *build_release;
 extern char *core_folder;
 extern int url_count;
-extern int do_unlink;
 
 /* corewatcher.c */
 extern int testmode;
