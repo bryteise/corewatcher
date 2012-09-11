@@ -80,15 +80,6 @@ void read_config_file(char *filename)
 				}
 			}
 		}
-		c = strstr(line, "release-info");
-		if (c) {
-			c += 11;
-			if (c < line_end) {
-				c = strstr(c, "/");
-				if (c)
-					build_release = strdup(c);
-			}
-		}
 		c = strstr(line, "core-folder");
 		if (c) {
 			c += 11;
@@ -103,8 +94,6 @@ void read_config_file(char *filename)
 	fclose(file);
 	free(line);
 
-	if (!build_release)
-		build_release = strdup("/etc/os-release");
 	if (!url_count) {
 		submit_url[url_count] = strdup("http://kojibuild7.jf.intel.com/crash_submit/");
 		if (!submit_url[url_count])
@@ -114,4 +103,7 @@ void read_config_file(char *filename)
 	}
 	if (!core_folder)
 		core_folder = strdup("/var/lib/corewatcher/");
+
+	/* Distribution editorial choice, not end-user choice: */
+	build_release = strdup("/etc/os-release");
 }
