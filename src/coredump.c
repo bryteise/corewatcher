@@ -768,7 +768,7 @@ int scan_corefolders(void __unused *unused)
 			break;
 		if (entry->d_name[0] == '.')
 			continue;
-		if (strncmp(entry->d_name, "core.", 5))
+		if (strncmp(entry->d_name, "core_", 5))
 			continue;
 
 		/* matched core.#### where #### is the processes pid */
