@@ -5,8 +5,7 @@ AM_CFLAGS = -std=gnu99 -fstack-protector -D_FORTIFY_SOURCE=2 \
 	-Wformat-security -Werror=format-security
 
 sbin_PROGRAMS = \
-	corewatcher \
-	corewatcher-config
+	corewatcher
 
 corewatcher_SOURCES = \
 	configfile.c \
@@ -14,9 +13,6 @@ corewatcher_SOURCES = \
 	corewatcher.c \
 	find_file.c \
 	submit.c
-
-corewatcher_config_SOURCES = \
-	corewatcher-config.c
 
 corewatcher_CFLAGS = \
 	$(AM_CFLAGS) \
@@ -29,12 +25,6 @@ corewatcher_LDADD = \
 	$(LIBPROXY_LIBS) \
 	$(LIBNOTIFY_LIBS) \
 	$(LIBCURL_LIBS)
-
-corewatcher_config_CFLAGS = \
-	$(AM_CFLAGS) \
-	$(GLIB2_CFLAGS)
-corewatcher_config_LDADD = \
-	$(GLIB2_LIBS)
 
 noinst_HEADERS = \
 	corewatcher.h
