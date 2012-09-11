@@ -64,6 +64,30 @@ void read_config_file(char *filename)
 
 		line_end = line + line_len;
 
+		c = strstr(line, "allow-submit");
+		if (c) {
+			c+=13;
+			if (c < line_end) {
+				if (!strstr(c, "yes")) {
+					printf("Error: allow-submit!=yes in config file.\n");
+					printf("Corewatcher will not run.\n");
+					exit(-1);
+				}
+			}
+		}
+
+		c = strstr(line, "allow-pass-on");
+		if (c) {
+			c+=14;
+			if (c < line_end) {
+				if (!strstr(c, "yes")) {
+					printf("Error: allow-pass-on!=yes in config file.\n");
+					printf("Corewatcher will not run.\n");
+					exit(-1);
+				}
+			}
+		}
+
 		c = strstr(line, "submit-url");
 		if (c && url_count <= MAX_URLS) {
 			c += 11;
