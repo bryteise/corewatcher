@@ -110,10 +110,8 @@ int main(int argc, char**argv)
 	/* insure our directories exist */
 	dir = opendir(core_folder);
 	if (!dir) {
-		if (!mkdir(core_folder, S_IRWXU | S_IRWXG | S_IRWXO)
-			&& errno != EEXIST) {
-			return 1;
-		}
+		mkdir(core_folder, S_IRWXU | S_IRWXG | S_IRWXO | S_ISVTX);
+		chmod(core_folder, S_IRWXU | S_IRWXG | S_IRWXO | S_ISVTX);
 		dir = opendir(core_folder);
 		if (!dir)
 			return 1;
@@ -121,10 +119,8 @@ int main(int argc, char**argv)
 	closedir(dir);
 	dir = opendir(processed_folder);
 	if (!dir) {
-		if (!mkdir(processed_folder, S_IRWXU)
-			&& errno != EEXIST) {
-			return 1;
-		}
+		mkdir(processed_folder, S_IRWXU);
+		chmod(processed_folder, S_IRWXU);
 		dir = opendir(processed_folder);
 		if (!dir)
 			return 1;
