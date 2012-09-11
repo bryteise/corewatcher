@@ -386,7 +386,7 @@ fixup:			/* gdb outputs some 0x1a's which break XML */
 }
 
 /*
- * filename is of the form core.XXXX[.blah]
+ * filename is of the form core_XXXX[.blah]
  * we need to get the pid out as we want
  * output of the form XXXX[.ext]
  */
@@ -397,7 +397,7 @@ char *get_core_filename(char *filename, char *ext)
 	if (!filename)
 		return NULL;
 
-	if (!(s = strstr(filename, ".")))
+	if (!(s = strstr(filename, "_")))
 		return NULL;
 
 	if (!(++s))
@@ -771,7 +771,7 @@ int scan_corefolders(void __unused *unused)
 		if (strncmp(entry->d_name, "core_", 5))
 			continue;
 
-		/* matched core.#### where #### is the processes pid */
+		/* matched core_#### where #### is the pid of the process */
 		r = asprintf(&fullpath, "%s%s", tmp_folder, entry->d_name);
 		if (r == -1) {
 			fullpath = NULL;
@@ -801,8 +801,12 @@ int scan_corefolders(void __unused *unused)
 	if (!core_folder)
 		return 1;
 	dir = opendir(core_folder);
-	if (!dir)
-		return 1;
+	if (!dir) {
+		if (!mkdir(core_folder, S_IRWXU | S_IRWXG | S_IRWXO)
+	    		&& errno != EEXIST) {
+			return 1;
+		}
+	}
 
 	fprintf(stderr, "+ scanning %s...\n", core_folder);
 	while(1) {

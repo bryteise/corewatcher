@@ -118,5 +118,5 @@ void read_config_file(char *filename)
 			url_count++;
 	}
 	if (!core_folder)
-		core_folder = strdup("/tmp/corewatcher/");
+		core_folder = strdup("/var/lib/corewatcher/");
 }
