@@ -10,5 +10,4 @@ dist_corewatcherconf_DATA = \
 	corewatcher.conf
 
 EXTRA_DIST = \
-	corewatcher.supp \
 	$(man_MANS)
