@@ -10,4 +10,5 @@ dist_corewatcherconf_DATA = \
 	corewatcher.conf
 
 EXTRA_DIST = \
+	COPYING \
 	$(man_MANS)
