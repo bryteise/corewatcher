@@ -1,0 +1,11 @@
+[Unit]
+Description=Nitra corefile monitor for collecting crash data
+DefaultDependencies=no
+After=sysinit.target
+
+[Service]
+Type=forking
+ExecStart=@prefix@/bin/corewatcher
+
+[Install]
+WantedBy=multi-user.target

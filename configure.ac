@@ -29,7 +29,7 @@ AC_TYPE_SSIZE_T
 # Checks for library functions.
 AC_FUNC_MALLOC
 
-AC_OUTPUT
+AC_OUTPUT(src/corewatcher.service)
 AC_MSG_RESULT([
 	corewatcher $VERSION
 	========

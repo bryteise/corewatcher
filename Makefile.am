@@ -9,6 +9,9 @@ dist_corewatcherconf_DATA = \
 	gdb.command \
 	corewatcher.conf
 
+systemdunitdir = $(prefix)/lib/systemd/system
+dist_systemdunit_DATA = src/corewatcher.service
+
 EXTRA_DIST = \
 	COPYING \
 	$(man_MANS)
