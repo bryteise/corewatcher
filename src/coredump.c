@@ -461,7 +461,7 @@ static void remove_from_processing_queue(void)
 	free(processing_queue[head]);
 	processing_queue[head++] = NULL;
 
-	if (head == 100)
+	if (head == MAX_PROCESSING_OOPS)
 		head = 0;
 }
 
@@ -692,7 +692,7 @@ static int add_to_processing(char *fullpath)
 
 	g_hash_table_insert(core_status.processing_oops, c2, c2);
 	processing_queue[tail++] = fp;
-	if (tail == 100)
+	if (tail == MAX_PROCESSING_OOPS)
 		tail = 0;
 
 	pthread_mutex_unlock(&processing_queue_mtx);
