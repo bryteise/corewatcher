@@ -206,18 +206,59 @@ char *strip_directories(char *fullpath)
 
 /*
  * Move corefile from core_folder to processed_folder subdir.
+ * If this type of core has recently been seen, unlink this more recent
+ * example in order to rate limit submissions of extremely crashy
+ * applications.
  * Add extension if given and attempt to create directories if needed.
  */
 int move_core(char *fullpath, char *extension)
 {
-	char *corefilename = NULL, newpath[8192];
+	char *corefilename = NULL, newpath[8192], *coreprefix = NULL;
+	char *s = NULL;
+	size_t prefix_len;
+	DIR *dir = NULL;
+	struct dirent *entry = NULL;
 
 	if (!fullpath)
 		return -1;
 
-	if (!(corefilename = strip_directories(fullpath))) {
-		unlink(fullpath);
+	if (!(corefilename = strip_directories(fullpath)))
 		return -ENOMEM;
+
+	/* if the corefile's name minus any suffixes (such as .$PID) and
+	 * minus two additional characters (ie: last two digits of
+	 * timestamp assuming core_%e_%t) matches another core file in the
+	 * processed_folder, simply unlink it instead of processing it for
+	 * submission.  TODO: consider a (configurable) time delta greater
+	 * than which the cores must be separated, stat'ing the files, etc.
+	 */
+	if (!(coreprefix = strdup(corefilename)))
+		return -ENOMEM;
+	if (!(s = strstr(coreprefix, ".")))
+		return -1;
+	*s = '\0';
+	prefix_len = strlen(coreprefix);
+	if (prefix_len > 2) {
+		s = strndup(coreprefix, prefix_len - 2);
+		free(coreprefix);
+		coreprefix = s;
+	} else {
+		goto error;
+	}
+	dir = opendir(processed_folder);
+	if (!dir)
+		goto error;
+	while(1) {
+		entry = readdir(dir);
+		if (!entry || !entry->d_name)
+			break;
+		if (entry->d_name[0] == '.')
+			continue;
+		if (!strstr(entry->d_name, coreprefix))
+			continue;
+		fprintf(stderr, "+ ...ignoring/unlinking %s\n", fullpath);
+		unlink(fullpath);
+		goto error;
 	}
 
 	if (extension)
@@ -225,10 +266,15 @@ int move_core(char *fullpath, char *extension)
 	else
 		snprintf(newpath, 8192, "%s%s", processed_folder, corefilename);
 
+	free(coreprefix);
 	free(corefilename);
 	rename(fullpath, newpath);
 
 	return 0;
+error:
+	free(coreprefix);
+	free(corefilename);
+	return -1;
 }
 
 /*
@@ -442,10 +488,12 @@ static void write_core_detail_file(char *filename, char *text)
 		return;
 
 	if ((fd = open(detail_filename, O_WRONLY | O_CREAT | O_TRUNC, 0)) != -1) {
-		if(write(fd, text, strlen(text)) >= 0)
+		if(write(fd, text, strlen(text)) >= 0) {
 			fchmod(fd, 0644);
-		else
+		} else {
+			fprintf(stderr, "+ ...ignoring/unlinking %s\n", detail_filename);
 			unlink(detail_filename);
+		}
 		close(fd);
 	}
 	free(detail_filename);
@@ -680,6 +728,11 @@ static int add_to_processing(char *fullpath)
 	pthread_mutex_lock(&core_status.processing_mtx);
 	if (g_hash_table_lookup(core_status.processing_oops, c2)) {
 		pthread_mutex_unlock(&core_status.processing_mtx);
+		/* This should only happen when the same core happened
+		 * multiple times in the same second.  Go ahead and
+		 * ignore/remove the newer one here */
+		fprintf(stderr, "+ ...ignoring/unlinking %s\n", fullpath);
+		unlink(fullpath);
 		goto clean_add_to_processing;
 	}
 
@@ -786,6 +839,7 @@ int scan_corefolders(void __unused *unused)
 		appfile = get_appfile(fullpath);
 
 		if (!appfile) {
+			fprintf(stderr, "+ ...ignoring/unlinking %s\n", fullpath);
 			unlink(fullpath);
 		} else {
 			free(appfile);
