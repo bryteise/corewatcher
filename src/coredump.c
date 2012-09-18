@@ -728,11 +728,6 @@ static int add_to_processing(char *fullpath)
 	pthread_mutex_lock(&core_status.processing_mtx);
 	if (g_hash_table_lookup(core_status.processing_oops, c2)) {
 		pthread_mutex_unlock(&core_status.processing_mtx);
-		/* This should only happen when the same core happened
-		 * multiple times in the same second.  Go ahead and
-		 * ignore/remove the newer one here */
-		fprintf(stderr, "+ ...ignoring/unlinking %s\n", fullpath);
-		unlink(fullpath);
 		goto clean_add_to_processing;
 	}
 
