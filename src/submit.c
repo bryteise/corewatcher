@@ -32,15 +32,18 @@
 #include <sys/stat.h>
 #include <glib.h>
 #include <asm/unistd.h>
-#include <pthread.h>
 #include <proxy.h>
 #include <curl/curl.h>
 
 #include "corewatcher.h"
 
+/*
+ * the application must initialize the GMutex queued_bt_mtx
+ * before calling into this file's functions
+ */
 /* Always pick up the queued_mtx and then the
    queued_bt_mtx, reverse for setting down */
-static pthread_mutex_t queued_bt_mtx = PTHREAD_MUTEX_INITIALIZER;
+GMutex queued_bt_mtx;
 static struct oops *queued_backtraces = NULL;
 static char result_url[4096];
 
@@ -67,7 +70,7 @@ void queue_backtrace(struct oops *oops)
 	new = malloc(sizeof(struct oops));
 	if (!new)
 		return;
-	pthread_mutex_lock(&queued_bt_mtx);
+	g_mutex_lock(&queued_bt_mtx);
 	new->next = queued_backtraces;
 	if (oops->application)
 		new->application = strdup(oops->application);
@@ -83,7 +86,7 @@ void queue_backtrace(struct oops *oops)
 	else
 		new->detail_filename = NULL;
 	queued_backtraces = new;
-	pthread_mutex_unlock(&queued_bt_mtx);
+	g_mutex_unlock(&queued_bt_mtx);
 	g_hash_table_insert(core_status.queued_oops, new->filename, new->filename);
 }
 
@@ -100,7 +103,7 @@ static void print_queue(void)
 	struct oops *oops = NULL, *next = NULL, *queue = NULL;
 	int count = 0;
 
-	pthread_mutex_lock(&queued_bt_mtx);
+	g_mutex_lock(&queued_bt_mtx);
 	queue = queued_backtraces;
 	queued_backtraces = NULL;
 	barrier();
@@ -112,10 +115,10 @@ static void print_queue(void)
 		oops = next;
 		count++;
 	}
-	pthread_mutex_unlock(&queued_bt_mtx);
-	pthread_mutex_lock(&core_status.processing_mtx);
+	g_mutex_unlock(&queued_bt_mtx);
+	g_mutex_lock(&core_status.processing_mtx);
 	g_hash_table_remove_all(core_status.processing_oops);
-	pthread_mutex_unlock(&core_status.processing_mtx);
+	g_mutex_unlock(&core_status.processing_mtx);
 
 	g_hash_table_remove_all(core_status.queued_oops);
 }
@@ -229,9 +232,9 @@ static void submit_queue_with_url(struct oops *queue, char *wsubmit_url, char *p
 			char *nf = NULL;
 			nf = replace_name(oops->filename, ".processed", ".submitted");
 			rename(oops->filename, nf);
-			pthread_mutex_lock(&core_status.processing_mtx);
+			g_mutex_lock(&core_status.processing_mtx);
 			remove_pid_from_hash(oops->filename, core_status.processing_oops);
-			pthread_mutex_unlock(&core_status.processing_mtx);
+			g_mutex_unlock(&core_status.processing_mtx);
 			free(nf);
 
 			g_hash_table_remove(core_status.queued_oops, oops->filename);
@@ -264,10 +267,10 @@ void submit_queue(void)
 	char **proxies = NULL;
 	char *proxy = NULL;
 
-	pthread_mutex_lock(&core_status.queued_mtx);
+	g_mutex_lock(&core_status.queued_mtx);
 
 	if (!g_hash_table_size(core_status.queued_oops)) {
-		pthread_mutex_unlock(&core_status.queued_mtx);
+		g_mutex_unlock(&core_status.queued_mtx);
 		return;
 	}
 
@@ -275,15 +278,15 @@ void submit_queue(void)
 
 	if (testmode) {
 		print_queue();
-		pthread_mutex_unlock(&core_status.queued_mtx);
+		g_mutex_unlock(&core_status.queued_mtx);
 		return;
 	}
 
-	pthread_mutex_lock(&queued_bt_mtx);
+	g_mutex_lock(&queued_bt_mtx);
 	queue = queued_backtraces;
 	queued_backtraces = NULL;
 	barrier();
-	pthread_mutex_unlock(&queued_bt_mtx);
+	g_mutex_unlock(&queued_bt_mtx);
 
 	pf = px_proxy_factory_new();
 	handle = curl_easy_init();
@@ -323,12 +326,12 @@ void submit_queue(void)
 			oops = next;
 		}
 	} else {
-		pthread_mutex_lock(&queued_bt_mtx);
+		g_mutex_lock(&queued_bt_mtx);
 		queued_backtraces = queue;
-		pthread_mutex_unlock(&queued_bt_mtx);
+		g_mutex_unlock(&queued_bt_mtx);
 	}
 
 	curl_easy_cleanup(handle);
 	curl_global_cleanup();
-	pthread_mutex_unlock(&core_status.queued_mtx);
+	g_mutex_unlock(&core_status.queued_mtx);
 }

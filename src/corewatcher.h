@@ -57,22 +57,22 @@ struct oops {
    processing_mtx, reverse for setting down */
 /* Considering the static mutexes the total global order should be:
    queued_mtx -> processing_mtx -> gdb_mtx ->processing_queue_mtx */
-/* The asked_mtx doesn't overlap with any of these */
 struct core_status {
-	GHashTable *asked_oops;
 	GHashTable *processing_oops;
 	GHashTable *queued_oops;
-	pthread_mutex_t asked_mtx;
-	pthread_mutex_t processing_mtx;
-	pthread_mutex_t queued_mtx;
+	GMutex processing_mtx;
+	GMutex queued_mtx;
 };
 
 /* submit.c */
+extern GMutex queued_bt_mtx;
 extern void queue_backtrace(struct oops *oops);
 extern void submit_queue(void);
 extern char *replace_name(char *filename, char *replace, char *new);
 
 /* coredump.c */
+extern GMutex processing_queue_mtx;
+extern GMutex gdb_mtx;
 extern int move_core(char *fullpath, char *ext);
 extern int scan_corefolders(void * unused);
 extern char *strip_directories(char *fullpath);
@@ -85,7 +85,6 @@ extern const char *processed_folder;
 
 /* configfile.c */
 extern void read_config_file(char *filename);
-extern int opted_in;
 extern int allow_distro_to_pass_on;
 extern char *submit_url[MAX_URLS];
 extern int url_count;

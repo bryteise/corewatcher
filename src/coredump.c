@@ -30,7 +30,6 @@
 #include <string.h>
 #include <assert.h>
 #include <fcntl.h>
-#include <pthread.h>
 #include <asm/unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -48,6 +47,14 @@ int sig = 0;
 const char *core_folder = "/var/lib/corewatcher/";
 const char *processed_folder = "/var/lib/corewatcher/processed/";
 
+/*
+ * the application must initialize the GMutex's
+ * core_status.processing_mtx, core_status.queued_mtx,
+ * processing_queue_mtx and gdb_mtx
+ * before calling into this file's scan_corefolders()
+ * (also since that calls submit_queue() there are dependencies
+ *  there which need taken care of too)
+ */
 /* Always pick up the processing_mtx and then the
    processing_queue_mtx, reverse for setting down */
 /* Always pick up the gdb_mtx and then the
@@ -57,11 +64,11 @@ const char *processed_folder = "/var/lib/corewatcher/processed/";
 /* so order for pick up should be:
    processing_mtx -> gdb_mtx -> processing_queue_mtx
    and the reverse for setting down */
-static pthread_mutex_t processing_queue_mtx = PTHREAD_MUTEX_INITIALIZER;
+GMutex processing_queue_mtx;
 static char *processing_queue[MAX_PROCESSING_OOPS];
-static pthread_mutex_t gdb_mtx = PTHREAD_MUTEX_INITIALIZER;
-static int tail = 0;
-static int head = 0;
+static int pq_tail = 0;
+static int pq_head = 0;
+GMutex gdb_mtx;
 
 static char *get_release(void)
 {
@@ -279,15 +286,7 @@ error:
 
 /*
  * Finds the full path for the application that crashed,
- * and depending on what opted_in was configured as will:
- * opted_in 2 (always submit) -> move file to processed_folder
- * to be processed further
- * opted_in 1 (ask user) -> ask user if we should submit
- * the crash and add to asked_oops hash so we don't get
- * called again for this corefile
- * opted_in 0 (don't submit) -> do nothing
- *
- * Picks up and sets down the asked_mtx.
+ * and moves file to processed_folder for processing
  */
 static char *get_appfile(char *fullpath)
 {
@@ -506,11 +505,11 @@ static void write_core_detail_file(char *filename, char *text)
  */
 static void remove_from_processing_queue(void)
 {
-	free(processing_queue[head]);
-	processing_queue[head++] = NULL;
+	free(processing_queue[pq_head]);
+	processing_queue[pq_head++] = NULL;
 
-	if (head == MAX_PROCESSING_OOPS)
-		head = 0;
+	if (pq_head == MAX_PROCESSING_OOPS)
+		pq_head = 0;
 }
 
 /*
@@ -583,15 +582,15 @@ static void *process_new(void __unused *vp)
 	struct oops *oops = NULL;
 	char *procfn = NULL, *corefn = NULL, *fullpath = NULL;
 
-	pthread_mutex_lock(&core_status.processing_mtx);
-	pthread_mutex_lock(&gdb_mtx);
-	pthread_mutex_lock(&processing_queue_mtx);
+	g_mutex_lock(&core_status.processing_mtx);
+	g_mutex_lock(&gdb_mtx);
+	g_mutex_lock(&processing_queue_mtx);
 
-	if (!(fullpath = processing_queue[head])) {
+	if (!(fullpath = processing_queue[pq_head])) {
 		/* something went quite wrong */
-		pthread_mutex_unlock(&processing_queue_mtx);
-		pthread_mutex_unlock(&gdb_mtx);
-		pthread_mutex_unlock(&core_status.processing_mtx);
+		g_mutex_unlock(&processing_queue_mtx);
+		g_mutex_unlock(&gdb_mtx);
+		g_mutex_unlock(&core_status.processing_mtx);
 		return NULL;
 	}
 
@@ -615,15 +614,15 @@ static void *process_new(void __unused *vp)
 
 	remove_from_processing_queue();
 
-	pthread_mutex_unlock(&processing_queue_mtx);
-	pthread_mutex_unlock(&gdb_mtx);
-	pthread_mutex_unlock(&core_status.processing_mtx);
+	g_mutex_unlock(&processing_queue_mtx);
+	g_mutex_unlock(&gdb_mtx);
+	g_mutex_unlock(&core_status.processing_mtx);
 
 	write_core_detail_file(corefn, oops->text);
 
-	pthread_mutex_lock(&core_status.queued_mtx);
+	g_mutex_lock(&core_status.queued_mtx);
 	queue_backtrace(oops);
-	pthread_mutex_unlock(&core_status.queued_mtx);
+	g_mutex_unlock(&core_status.queued_mtx);
 
 	/* don't need to free procfn because was set to oops->filename and that gets free'd */
 	free(corefn);
@@ -637,9 +636,9 @@ clean_process_new:
 	procfn = NULL; /* don't know if oops->filename == procfn so be safe */
 	free(corefn);
 	FREE_OOPS(oops);
-	pthread_mutex_unlock(&processing_queue_mtx);
-	pthread_mutex_unlock(&gdb_mtx);
-	pthread_mutex_unlock(&core_status.processing_mtx);
+	g_mutex_unlock(&processing_queue_mtx);
+	g_mutex_unlock(&gdb_mtx);
+	g_mutex_unlock(&core_status.processing_mtx);
 	return NULL;
 }
 
@@ -656,13 +655,13 @@ static void *process_old(void __unused *vp)
 	struct oops *oops = NULL;
 	char *corefn = NULL, *fullpath = NULL;
 
-	pthread_mutex_lock(&gdb_mtx);
-	pthread_mutex_lock(&processing_queue_mtx);
+	g_mutex_lock(&gdb_mtx);
+	g_mutex_lock(&processing_queue_mtx);
 
-	if (!(fullpath = processing_queue[head])) {
+	if (!(fullpath = processing_queue[pq_head])) {
 		/* something went quite wrong */
-		pthread_mutex_unlock(&processing_queue_mtx);
-		pthread_mutex_unlock(&gdb_mtx);
+		g_mutex_unlock(&processing_queue_mtx);
+		g_mutex_unlock(&gdb_mtx);
 		return NULL;
 	}
 
@@ -677,12 +676,12 @@ static void *process_old(void __unused *vp)
 
 	remove_from_processing_queue();
 
-	pthread_mutex_unlock(&processing_queue_mtx);
-	pthread_mutex_unlock(&gdb_mtx);
+	g_mutex_unlock(&processing_queue_mtx);
+	g_mutex_unlock(&gdb_mtx);
 
-	pthread_mutex_lock(&core_status.queued_mtx);
+	g_mutex_lock(&core_status.queued_mtx);
 	queue_backtrace(oops);
-	pthread_mutex_unlock(&core_status.queued_mtx);
+	g_mutex_unlock(&core_status.queued_mtx);
 
 	free(corefn);
 	FREE_OOPS(oops);
@@ -693,8 +692,8 @@ clean_process_old:
 	remove_from_processing_queue();
 	free(corefn);
 	FREE_OOPS(oops);
-	pthread_mutex_unlock(&processing_queue_mtx);
-	pthread_mutex_unlock(&gdb_mtx);
+	g_mutex_unlock(&processing_queue_mtx);
+	g_mutex_unlock(&gdb_mtx);
 	return NULL;
 }
 
@@ -725,26 +724,26 @@ static int add_to_processing(char *fullpath)
 	free(c1);
 	c1 = NULL;
 
-	pthread_mutex_lock(&core_status.processing_mtx);
+	g_mutex_lock(&core_status.processing_mtx);
 	if (g_hash_table_lookup(core_status.processing_oops, c2)) {
-		pthread_mutex_unlock(&core_status.processing_mtx);
+		g_mutex_unlock(&core_status.processing_mtx);
 		goto clean_add_to_processing;
 	}
 
-	pthread_mutex_lock(&processing_queue_mtx);
-	if (processing_queue[tail]) {
-		pthread_mutex_unlock(&processing_queue_mtx);
-		pthread_mutex_unlock(&core_status.processing_mtx);
+	g_mutex_lock(&processing_queue_mtx);
+	if (processing_queue[pq_tail]) {
+		g_mutex_unlock(&processing_queue_mtx);
+		g_mutex_unlock(&core_status.processing_mtx);
 		goto clean_add_to_processing;
 	}
 
 	g_hash_table_insert(core_status.processing_oops, c2, c2);
-	processing_queue[tail++] = fp;
-	if (tail == MAX_PROCESSING_OOPS)
-		tail = 0;
+	processing_queue[pq_tail++] = fp;
+	if (pq_tail == MAX_PROCESSING_OOPS)
+		pq_tail = 0;
 
-	pthread_mutex_unlock(&processing_queue_mtx);
-	pthread_mutex_unlock(&core_status.processing_mtx);
+	g_mutex_unlock(&processing_queue_mtx);
+	g_mutex_unlock(&core_status.processing_mtx);
 	return 0;
 clean_add_to_processing:
 	free(fp);
@@ -758,7 +757,7 @@ clean_add_to_processing:
  */
 static void process_corefile(char *fullpath)
 {
-	pthread_t thrd;
+	GThread *thrd = NULL;
 	int r = 1;
 
 	r = add_to_processing(fullpath);
@@ -766,8 +765,9 @@ static void process_corefile(char *fullpath)
 	if (r)
 		return;
 
-	if (pthread_create(&thrd, NULL, process_new, NULL))
-		fprintf(stderr, "Couldn't start up gdb extract core thread\n");
+	thrd = g_thread_new("process_new", process_new, NULL);
+	if (thrd == NULL)
+		fprintf(stderr, "Couldn't start thread for process_new()\n");
 }
 
 /*
@@ -775,7 +775,7 @@ static void process_corefile(char *fullpath)
  */
 static void reprocess_corefile(char *fullpath)
 {
-	pthread_t thrd;
+	GThread *thrd = NULL;
 	int r = 0;
 
 	r = add_to_processing(fullpath);
@@ -783,25 +783,22 @@ static void reprocess_corefile(char *fullpath)
 	if (r)
 		return;
 
-	if (pthread_create(&thrd, NULL, process_old, NULL))
-		fprintf(stderr, "Couldn't start up gdb extract core thread\n");
+	thrd = g_thread_new("process_old", process_old, NULL);
+	if (thrd == NULL)
+		fprintf(stderr, "Couldn't start thread for process_old()\n");
 }
 
-int scan_corefolders(void __unused *unused)
+static void scan_core_folder(void __unused *unused)
 {
+	/* scan for new crash data */
 	DIR *dir = NULL;
 	struct dirent *entry = NULL;
 	char *fullpath = NULL, *appfile = NULL;
 	int r = 0;
 
-	pthread_mutex_init(&core_status.processing_mtx, NULL);
-	pthread_mutex_init(&core_status.queued_mtx, NULL);
-	pthread_mutex_init(&core_status.asked_mtx, NULL);
-
-	/* scan for new crash data */
 	dir = opendir(core_folder);
 	if (!dir)
-		return 1;
+		return;
 	fprintf(stderr, "+ scanning %s...\n", core_folder);
 	while(1) {
 		free(fullpath);
@@ -823,13 +820,10 @@ int scan_corefolders(void __unused *unused)
 		} else if (((unsigned int)r) != strlen(core_folder) + strlen(entry->d_name)) {
 			continue;
 		}
-		/* already found, waiting for response from user */
-		pthread_mutex_lock(&core_status.asked_mtx);
-		if (g_hash_table_lookup(core_status.asked_oops, fullpath)) {
-			pthread_mutex_unlock(&core_status.asked_mtx);
-			continue;
-		}
-		pthread_mutex_unlock(&core_status.asked_mtx);
+
+		/* If one were to prompt the user before submitting, that
+		 * might happen here.  */
+
 		fprintf(stderr, "+ Looking at %s\n", fullpath);
 		appfile = get_appfile(fullpath);
 
@@ -842,11 +836,19 @@ int scan_corefolders(void __unused *unused)
 		}
 	}
 	closedir(dir);
+}
 
+static void scan_processed_folder(void __unused *unused)
+{
 	/* scan for partially processed crash data */
+	DIR *dir = NULL;
+	struct dirent *entry = NULL;
+	char *fullpath = NULL;
+	int r = 0;
+
 	dir = opendir(processed_folder);
 	if (!dir)
-		return 1;
+		return;
 	fprintf(stderr, "+ scanning %s...\n", processed_folder);
 	while(1) {
 		free(fullpath);
@@ -875,6 +877,12 @@ int scan_corefolders(void __unused *unused)
 			reprocess_corefile(fullpath);
 	}
 	closedir(dir);
+}
+
+int scan_corefolders(void __unused *unused)
+{
+	scan_core_folder(NULL);
+	scan_processed_folder(NULL);
 
 	submit_queue();
 

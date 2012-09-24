@@ -1,5 +1,5 @@
 AC_PREREQ([2.68])
-AC_INIT([nitra-corewatcher],[0.9.2],[timothy.c.pepper@linux.intel.com])
+AC_INIT([nitra-corewatcher],[0.9.3],[timothy.c.pepper@linux.intel.com])
 AM_INIT_AUTOMAKE([foreign -Wall -Werror])
 AC_CONFIG_FILES([Makefile src/Makefile])
 AC_CONFIG_SRCDIR([src/corewatcher.c])
@@ -9,9 +9,6 @@ AC_CONFIG_HEADERS([config.h])
 AC_PROG_CC
 AM_PROG_CC_C_O
 AC_PROG_INSTALL
-
-# Checks for libraries.
-AC_CHECK_LIB([pthread], [pthread_mutex_unlock], , AC_MSG_ERROR([libpthread is required but was not found]))
 
 # PkgConfig tests
 PKG_CHECK_MODULES([GLIB2], [glib-2.0])
