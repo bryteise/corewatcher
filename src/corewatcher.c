@@ -197,11 +197,11 @@ int main(int argc, char**argv)
 	dir = opendir(core_folder);
 	if (!dir) {
 		mkdir(core_folder, S_IRWXU | S_IRWXG | S_IRWXO | S_ISVTX);
-		chmod(core_folder, S_IRWXU | S_IRWXG | S_IRWXO | S_ISVTX);
 		dir = opendir(core_folder);
 		if (!dir)
 			return 1;
 	}
+	chmod(core_folder, S_IRWXU | S_IRWXG | S_IRWXO | S_ISVTX);
 	closedir(dir);
 	dir = opendir(processed_folder);
 	if (!dir) {
@@ -211,6 +211,7 @@ int main(int argc, char**argv)
 		if (!dir)
 			return 1;
 	}
+	chmod(processed_folder, S_IRWXU);
 	closedir(dir);
 
 	while (1) {
