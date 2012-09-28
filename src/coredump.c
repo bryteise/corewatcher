@@ -321,15 +321,25 @@ static struct oops *extract_core(char *fullpath, char *appfile)
 {
 	struct oops *oops = NULL;
 	int ret = 0;
-	char *command = NULL, *h1 = NULL, *c1 = NULL, *c2 = NULL, *line = NULL, *text = NULL, *at = NULL;
+	char *command = NULL, *h1 = NULL, *c1 = NULL, *c2 = NULL, *line = NULL;
+	char *text = NULL, *at = NULL, *coretime = NULL;
 	char *m1 = NULL, *m2 = NULL;
 	FILE *file = NULL;
 	char *badchar = NULL;
 	char *release = get_release();
 	int parsing_maps = 0;
+	struct stat stat_buf;
 
 	if (asprintf(&command, "LANG=C gdb --batch -f %s %s -x /etc/corewatcher/gdb.command 2> /dev/null", appfile, fullpath) == -1)
 		return NULL;
+
+	if (stat(fullpath, &stat_buf) != -1) {
+		coretime = ctime(&stat_buf.st_mtime);
+	}
+	if (coretime == NULL) {
+		if (asprintf(&coretime, "Unknown\n") == -1)
+			return NULL;
+	}
 
 	if ((at = wrapper_scan(command))) {
 		free(appfile);
@@ -338,9 +348,11 @@ static struct oops *extract_core(char *fullpath, char *appfile)
 
 	ret = asprintf(&h1,
 		       "cmdline: %s\n"
-		       "release: %s\n",
+		       "release: %s\n"
+		       "time: %s",
 		       appfile,
-		       release);
+		       release,
+		       coretime);
 	free(release);
 	if (ret == -1)
 		h1 = strdup("Unknown");
