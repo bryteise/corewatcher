@@ -267,8 +267,9 @@ int main(int argc, char**argv)
 	if (!debug)
 		sleep(20);
 
+	scan_corefolders(NULL);
+
 	if (testmode) {
-		scan_corefolders(NULL);
 		fprintf(stderr, "+ Exiting from testmode\n");
 		goto out;
 	}
