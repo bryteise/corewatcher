@@ -22,6 +22,7 @@
  * Authors:
  *	Arjan van de Ven <arjan@linux.intel.com>
  *	William Douglas <william.douglas@intel.com>
+ *	Tim Pepper <timothy.c.pepper@linux.intel.com>
  */
 
 #include <unistd.h>
@@ -47,14 +48,6 @@ int sig = 0;
 const char *core_folder = "/var/lib/corewatcher/";
 const char *processed_folder = "/var/lib/corewatcher/processed/";
 
-/*
- * the application must initialize the GMutex's
- * core_status.processing_mtx, core_status.queued_mtx,
- * processing_queue_mtx and gdb_mtx
- * before calling into this file's scan_corefolders()
- * (also since that calls submit_queue() there are dependencies
- *  there which need taken care of too)
- */
 /* Always pick up the processing_mtx and then the
    processing_queue_mtx, reverse for setting down */
 /* Always pick up the gdb_mtx and then the
@@ -330,6 +323,8 @@ static struct oops *extract_core(char *fullpath, char *appfile)
 	int parsing_maps = 0;
 	struct stat stat_buf;
 
+	fprintf(stderr, "+ extract_core() called for %s\n", fullpath);
+
 	if (asprintf(&command, "LANG=C gdb --batch -f %s %s -x /etc/corewatcher/gdb.command 2> /dev/null", appfile, fullpath) == -1)
 		return NULL;
 
@@ -358,6 +353,8 @@ static struct oops *extract_core(char *fullpath, char *appfile)
 		h1 = strdup("Unknown");
 
 	file = popen(command, "r");
+	if (!file)
+		fprintf(stderr, "+ gdb failed for %s\n", fullpath);
 
 	while (file && !feof(file)) {
 		size_t size = 0;
@@ -373,6 +370,9 @@ static struct oops *extract_core(char *fullpath, char *appfile)
 		if (strncmp(line, "From", 4) == 0) {
 			parsing_maps = 1;
 			/*continue;*/
+		}
+		if (strncmp(line, "No shared libraries loaded at this time.", 40) == 0) {
+			break;
 		}
 
 		if (!parsing_maps) { /* parsing backtrace */
@@ -414,6 +414,12 @@ fixup:			/* gdb outputs some 0x1a's which break XML */
 		pclose(file);
 	free(command);
 
+	if (!h1)
+		h1 = strdup("Unknown");
+
+	if (!m1)
+		m1 = strdup("        Unknown");
+
 	ret = asprintf(&text,
 		       "%s"
 		       "backtrace: |\n"
@@ -440,52 +446,49 @@ fixup:			/* gdb outputs some 0x1a's which break XML */
 }
 
 /*
- * filename is of the form core_XXXX[.blah]
- * we need to get the pid out as we want
- * output of the form XXXX[.ext]
+ * input filename has the form: core_$APP_$TIMESTAMP[.$PID]
+ * output filename has form of: $APP_$TIMESTAMP[.ext]
  */
 char *get_core_filename(char *filename, char *ext)
 {
-	char *pid = NULL, *c = NULL, *s = NULL, *detail_filename = NULL;
+	char *name = NULL, *dotpid = NULL, *stamp = NULL, *detail_filename = NULL;
 
 	if (!filename)
 		return NULL;
 
-	if (!(s = strstr(filename, "_")))
+	if (!(stamp = strstr(filename, "_")))
 		return NULL;
 
-	if (!(++s))
-		return NULL;
-	/* causes valgrind whining because we copy from middle of a string */
-	if (!(pid = strdup(s)))
+	if (!(++stamp))
 		return NULL;
 
-	c = strstr(pid, ".");
+	if (!(name = strdup(stamp)))
+		return NULL;
 
-	if (c)
-		*c = '\0';
+	/* strip trailing .PID if present */
+	dotpid = strstr(name, ".");
+	if (dotpid)
+		*dotpid = '\0';
 
 	if (ext) {
-		/* causes valgrind whining because we copy from middle of a string */
-		if ((asprintf(&detail_filename, "%s%s.%s", processed_folder, pid, ext)) == -1) {
-			free(pid);
+		if ((asprintf(&detail_filename, "%s%s.%s", processed_folder, name, ext)) == -1) {
+			free(name);
 			return NULL;
 		}
 	} else {
-		/* causes valgrind whining because we copy from middle of a string */
-		if ((asprintf(&detail_filename, "%s%s", processed_folder, pid)) == -1) {
-			free(pid);
+		if ((asprintf(&detail_filename, "%s%s", processed_folder, name)) == -1) {
+			free(name);
 			return NULL;
 		}
 	}
+	free(name);
 
-	free(pid);
 	return detail_filename;
 }
 
 /*
  * Write the backtrace from the core file into a text
- * file named after the pid
+ * file named as $APP_$TIMESTAMP.txt
  */
 static void write_core_detail_file(char *filename, char *text)
 {
@@ -517,37 +520,49 @@ static void write_core_detail_file(char *filename, char *text)
  */
 static void remove_from_processing_queue(void)
 {
+	fprintf(stderr, "+ removing processing_queue head\n");
 	free(processing_queue[pq_head]);
 	processing_queue[pq_head++] = NULL;
 
-	if (pq_head == MAX_PROCESSING_OOPS)
+	if (pq_head == MAX_PROCESSING_OOPS) {
+		fprintf(stderr, "+ wrapping processing_queue head to 0 (bugs here?)\n");
 		pq_head = 0;
+	}
 }
 
 /*
- * Removes file from processing_oops hash based on pid.
- * Extracts pid from the fullpath such that
- * /home/user/core.pid will be tranformed into just the pid.
+ * Removes file from processing_oops hash based on core name,
+ * extracting that core name from a fullpath such as
+ * "/${processed_folder}/core_$APP_$TIMESTAMP.$PID"
+ * in order to get just "$APP_$TIMESTAMP"
  *
  * Expects the lock on the given hash to be held.
  */
-void remove_pid_from_hash(char *fullpath, GHashTable *ht)
+void remove_name_from_hash(char *fullpath, GHashTable *ht)
 {
-	char *c1 = NULL, *c2 = NULL;
+	char *name = NULL, *corename = NULL, *shortname = NULL;
 
-	if (!(c1 = strip_directories(fullpath)))
+	if (!(name = strip_directories(fullpath)))
 		return;
 
-	if (!(c2 = get_core_filename(c1, NULL))) {
-		free(c1);
+	if (!(corename = get_core_filename(name, NULL))) {
+		free(name);
 		return;
 	}
+	free(name);
 
-	free(c1);
+	if (!(shortname = strip_directories(corename))) {
+		free(corename);
+		return;
+	}
+	free(corename);
 
-	g_hash_table_remove(ht, c2);
+	if (g_hash_table_remove(ht, shortname))
+		fprintf(stderr, "+ core %s removed from processing_oops hash table\n", shortname);
+	else
+		fprintf(stderr, "+ core %s not in processing_oops hash table\n", shortname);
 
-	free(c2);
+	free(shortname);
 }
 
 /*
@@ -581,13 +596,12 @@ static struct oops *process_common(char *fullpath)
 
 /*
  * Processes .to-process core files.
- * Also creates the pid.txt file and adds
+ * Also creates the $APP_$TIMESTAMP.txt file and adds
  * the oops struct to the submit queue
  *
  * Picks up and sets down the gdb_mtx and
  * picks up and sets down the processing_queue_mtx.
  * (held at the same time in that order)
- * Also will pick up and sets down the queued_mtx.
  */
 static void *process_new(void __unused *vp)
 {
@@ -598,28 +612,40 @@ static void *process_new(void __unused *vp)
 	g_mutex_lock(&gdb_mtx);
 	g_mutex_lock(&processing_queue_mtx);
 
+	fprintf(stderr, "+ Entered process_new()\n");
+
 	if (!(fullpath = processing_queue[pq_head])) {
-		/* something went quite wrong */
+		fprintf(stderr, "+ processing_queue corruption?\n");
 		g_mutex_unlock(&processing_queue_mtx);
 		g_mutex_unlock(&gdb_mtx);
 		g_mutex_unlock(&core_status.processing_mtx);
 		return NULL;
 	}
 
-	if (!(corefn = strip_directories(fullpath)))
+	if (!(corefn = strip_directories(fullpath))) {
+		fprintf(stderr, "+ No corefile? (%s)\n", fullpath);
 		goto clean_process_new;
+	}
 
-	if (!(procfn = replace_name(fullpath, ".to-process", ".processed")))
+	if (!(procfn = replace_name(fullpath, ".to-process", ".processed"))) {
+		fprintf(stderr, "+ Problems with filename manipulation for %s\n", corefn);
 		goto clean_process_new;
+	}
 
-	if (!(oops = process_common(fullpath)))
+	if (!(oops = process_common(fullpath))) {
+		fprintf(stderr, "+ Problems processing %s\n", procfn);
 		goto clean_process_new;
+	}
 
-	if (!(oops->detail_filename = get_core_filename(corefn, "txt")))
+	if (!(oops->detail_filename = get_core_filename(corefn, "txt"))) {
+		fprintf(stderr, "+ Problems with filename manipulation for %s\n", procfn);
 		goto clean_process_new;
+	}
 
-	if (rename(fullpath, procfn))
+	if (rename(fullpath, procfn)) {
+		fprintf(stderr, "+ Unable to move %s to %s\n", fullpath, procfn);
 		goto clean_process_new;
+	}
 
 	free(oops->filename);
 	oops->filename = procfn;
@@ -632,20 +658,18 @@ static void *process_new(void __unused *vp)
 
 	write_core_detail_file(corefn, oops->text);
 
-	g_mutex_lock(&core_status.queued_mtx);
 	queue_backtrace(oops);
-	g_mutex_unlock(&core_status.queued_mtx);
 
-	/* don't need to free procfn because was set to oops->filename and that gets free'd */
+	fprintf(stderr, "+ Leaving process_new() with %s queued\n", oops->detail_filename);
+
+	/* mustn't free procfn because it was hung on oops->filename */
 	free(corefn);
-	FREE_OOPS(oops);
 	return NULL;
 
 clean_process_new:
-	remove_pid_from_hash(fullpath, core_status.processing_oops);
+	remove_name_from_hash(fullpath, core_status.processing_oops);
 	remove_from_processing_queue();
 	free(procfn);
-	procfn = NULL; /* don't know if oops->filename == procfn so be safe */
 	free(corefn);
 	FREE_OOPS(oops);
 	g_mutex_unlock(&processing_queue_mtx);
@@ -660,7 +684,6 @@ clean_process_new:
  * Picks up and sets down the gdb_mtx.
  * Picks up and sets down the processing_queue_mtx.
  * (held at the same time in that order)
- * Also will pick up and sets down the queued_mtx.
  */
 static void *process_old(void __unused *vp)
 {
@@ -670,37 +693,45 @@ static void *process_old(void __unused *vp)
 	g_mutex_lock(&gdb_mtx);
 	g_mutex_lock(&processing_queue_mtx);
 
+	fprintf(stderr, "+ Entered process_old()\n");
+
 	if (!(fullpath = processing_queue[pq_head])) {
-		/* something went quite wrong */
+		fprintf(stderr, "+ processing_queue corruption?\n");
 		g_mutex_unlock(&processing_queue_mtx);
 		g_mutex_unlock(&gdb_mtx);
 		return NULL;
 	}
+	fprintf(stderr, "+ Reprocessing %s\n", fullpath);
 
-	if (!(corefn = strip_directories(fullpath)))
+	if (!(corefn = strip_directories(fullpath))) {
+		fprintf(stderr, "+ No corefile? (%s)\n", fullpath);
 		goto clean_process_old;
+	}
 
-	if (!(oops = process_common(fullpath)))
+	if (!(oops = process_common(fullpath))) {
+		fprintf(stderr, "+ Problems processing %s\n", corefn);
 		goto clean_process_old;
+	}
 
-	if (!(oops->detail_filename = get_core_filename(corefn, "txt")))
+	if (!(oops->detail_filename = get_core_filename(corefn, "txt"))) {
+		fprintf(stderr, "+ Problems with filename manipulation for %s\n", corefn);
 		goto clean_process_old;
+	}
 
 	remove_from_processing_queue();
 
 	g_mutex_unlock(&processing_queue_mtx);
 	g_mutex_unlock(&gdb_mtx);
 
-	g_mutex_lock(&core_status.queued_mtx);
 	queue_backtrace(oops);
-	g_mutex_unlock(&core_status.queued_mtx);
+
+	fprintf(stderr, "+ Leaving process_old() with %s queued\n", oops->detail_filename);
 
 	free(corefn);
-	FREE_OOPS(oops);
 	return NULL;
 
 clean_process_old:
-	remove_pid_from_hash(fullpath, core_status.processing_oops);
+	remove_name_from_hash(fullpath, core_status.processing_oops);
 	remove_from_processing_queue();
 	free(corefn);
 	FREE_OOPS(oops);
@@ -710,7 +741,7 @@ clean_process_old:
 }
 
 /*
- * Adds corefile (based on pid) to the processing_oops
+ * Adds corefile (based on name) to the processing_oops
  * hash table if it is not already there, then
  * tries to add to the processing_queue.
  *
@@ -739,6 +770,7 @@ static int add_to_processing(char *fullpath)
 	g_mutex_lock(&core_status.processing_mtx);
 	if (g_hash_table_lookup(core_status.processing_oops, c2)) {
 		g_mutex_unlock(&core_status.processing_mtx);
+		fprintf(stderr, "+ ...name %s already in processing_oops hash table\n", c2);
 		goto clean_add_to_processing;
 	}
 
@@ -746,6 +778,7 @@ static int add_to_processing(char *fullpath)
 	if (processing_queue[pq_tail]) {
 		g_mutex_unlock(&processing_queue_mtx);
 		g_mutex_unlock(&core_status.processing_mtx);
+		fprintf(stderr, "+ ...processing_queue full\n");
 		goto clean_add_to_processing;
 	}
 
@@ -811,7 +844,7 @@ static void scan_core_folder(void __unused *unused)
 	dir = opendir(core_folder);
 	if (!dir)
 		return;
-	fprintf(stderr, "+ scanning %s...\n", core_folder);
+	fprintf(stderr, "+ Begin scanning %s...\n", core_folder);
 	while(1) {
 		free(fullpath);
 		fullpath = NULL;
@@ -824,7 +857,7 @@ static void scan_core_folder(void __unused *unused)
 		if (strncmp(entry->d_name, "core_", 5))
 			continue;
 
-		/* matched core_#### where #### is the pid of the process */
+		/* matched core_#### */
 		r = asprintf(&fullpath, "%s%s", core_folder, entry->d_name);
 		if (r == -1) {
 			fullpath = NULL;
@@ -848,6 +881,7 @@ static void scan_core_folder(void __unused *unused)
 		}
 	}
 	closedir(dir);
+	fprintf(stderr, "+ End scanning %s...\n", core_folder);
 }
 
 static void scan_processed_folder(void __unused *unused)
@@ -861,7 +895,7 @@ static void scan_processed_folder(void __unused *unused)
 	dir = opendir(processed_folder);
 	if (!dir)
 		return;
-	fprintf(stderr, "+ scanning %s...\n", processed_folder);
+	fprintf(stderr, "+ Begin scanning %s...\n", processed_folder);
 	while(1) {
 		free(fullpath);
 		fullpath = NULL;
@@ -889,14 +923,13 @@ static void scan_processed_folder(void __unused *unused)
 			reprocess_corefile(fullpath);
 	}
 	closedir(dir);
+	fprintf(stderr, "+ End scanning %s...\n", processed_folder);
 }
 
 int scan_corefolders(void __unused *unused)
 {
 	scan_core_folder(NULL);
 	scan_processed_folder(NULL);
-
-	submit_queue();
 
 	return 1;
 }

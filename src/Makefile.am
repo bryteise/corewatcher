@@ -11,6 +11,7 @@ corewatcher_SOURCES = \
 	configfile.c \
 	coredump.c \
 	corewatcher.c \
+	inotification.c \
 	find_file.c \
 	submit.c
 

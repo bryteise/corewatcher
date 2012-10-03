@@ -21,6 +21,7 @@
  * Authors:
  *	Arjan van de Ven <arjan@linux.intel.com>
  *	William Douglas <william.douglas@intel.com>
+ *	Tim Pepper <timothy.c.pepper@linux.intel.com>
  */
 
 
@@ -28,11 +29,10 @@
 #define __INCLUDE_GUARD_KERNELOOPS_H_
 
 /* borrowed from the kernel */
-#define barrier() __asm__ __volatile__("": : :"memory")
 #define __unused  __attribute__ ((__unused__))
 
 #define MAX_PROCESSING_OOPS 10
-#define MAX_URLS 9
+#define MAX_URLS 2
 
 #define FREE_OOPS(oops)					\
 	do {						\
@@ -59,25 +59,23 @@ struct oops {
    queued_mtx -> processing_mtx -> gdb_mtx ->processing_queue_mtx */
 struct core_status {
 	GHashTable *processing_oops;
-	GHashTable *queued_oops;
 	GMutex processing_mtx;
-	GMutex queued_mtx;
 };
 
+/* inotification.c */
+extern void *inotify_loop(void * unused);
+
 /* submit.c */
-extern GMutex queued_bt_mtx;
 extern void queue_backtrace(struct oops *oops);
-extern void submit_queue(void);
 extern char *replace_name(char *filename, char *replace, char *new);
+extern void *submit_loop(void * unused);
 
 /* coredump.c */
-extern GMutex processing_queue_mtx;
-extern GMutex gdb_mtx;
 extern int move_core(char *fullpath, char *ext);
 extern int scan_corefolders(void * unused);
 extern char *strip_directories(char *fullpath);
 extern char *get_core_filename(char *filename, char *ext);
-extern void remove_pid_from_hash(char *fullpath, GHashTable *ht);
+extern void remove_name_from_hash(char *fullpath, GHashTable *ht);
 extern int uid;
 extern int sig;
 extern const char *core_folder;

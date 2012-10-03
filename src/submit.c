@@ -22,6 +22,7 @@
  * Authors:
  *	Arjan van de Ven <arjan@linux.intel.com>
  *	William Douglas <william.douglas@intel.com>
+ *	Tim Pepper <timothy.c.pepper@linux.intel.com>
  */
 
 #include <unistd.h>
@@ -37,57 +38,37 @@
 
 #include "corewatcher.h"
 
-/*
- * the application must initialize the GMutex queued_bt_mtx
- * before calling into this file's functions
- */
 /* Always pick up the queued_mtx and then the
    queued_bt_mtx, reverse for setting down */
-GMutex queued_bt_mtx;
-static struct oops *queued_backtraces = NULL;
-static char result_url[4096];
+GMutex bt_mtx;
+GCond bt_work;
+GHashTable *bt_hash;
+static struct oops *bt_list = NULL;
 
 /*
- * Creates a duplicate of oops and adds it to
- * the submit queue if the oops isn't already
- * there.
- *
- * Expects the queued_mtx to be held
- * Picks up and sets down the queued_bt_mtx.
+ * Adds an oops to the work queue if the oops
+ * isn't already there.
  */
 void queue_backtrace(struct oops *oops)
 {
-	struct oops *new = NULL;
-
 	if (!oops || !oops->filename)
 		return;
 
-	/* first, check if we haven't already submitted the oops */
+	g_mutex_lock(&bt_mtx);
 
-	if (g_hash_table_lookup(core_status.queued_oops, oops->filename))
+	/* if this is already on bt_list / bt_hash, free and done */
+	if (g_hash_table_lookup(bt_hash, oops->filename)) {
+		FREE_OOPS(oops);
+		g_mutex_unlock(&bt_mtx);
 		return;
+	}
 
-	new = malloc(sizeof(struct oops));
-	if (!new)
-		return;
-	g_mutex_lock(&queued_bt_mtx);
-	new->next = queued_backtraces;
-	if (oops->application)
-		new->application = strdup(oops->application);
-	else
-		new->application = NULL;
-	if (oops->text)
-		new->text = strdup(oops->text);
-	else
-		new->text = NULL;
-	new->filename = strdup(oops->filename);
-	if (oops->detail_filename)
-		new->detail_filename = strdup(oops->detail_filename);
-	else
-		new->detail_filename = NULL;
-	queued_backtraces = new;
-	g_mutex_unlock(&queued_bt_mtx);
-	g_hash_table_insert(core_status.queued_oops, new->filename, new->filename);
+	/* otherwise add to bt_list / bt_hash, signal work */
+	oops->next = bt_list;
+	bt_list = oops;
+	g_hash_table_insert(bt_hash, oops->filename, oops->filename);
+	g_cond_signal(&bt_work);
+	g_mutex_unlock(&bt_mtx);
 }
 
 /*
@@ -95,19 +76,15 @@ void queue_backtrace(struct oops *oops)
  * be submitted.
  *
  * Picks up and sets down the processing_mtx.
- * Picks up and sets down the queued_bt_mtx.
- * Expects the queued_mtx to be held.
+ * Picks up and sets down the bt_mtx.
  */
 static void print_queue(void)
 {
-	struct oops *oops = NULL, *next = NULL, *queue = NULL;
+	struct oops *oops = NULL, *next = NULL;
 	int count = 0;
 
-	g_mutex_lock(&queued_bt_mtx);
-	queue = queued_backtraces;
-	queued_backtraces = NULL;
-	barrier();
-	oops = queue;
+	g_mutex_lock(&bt_mtx);
+	oops = bt_list;
 	while (oops) {
 		fprintf(stderr, "+ Submit text is:\n---[start of oops]---\n%s\n---[end of oops]---\n", oops->text);
 		next = oops->next;
@@ -115,44 +92,41 @@ static void print_queue(void)
 		oops = next;
 		count++;
 	}
-	g_mutex_unlock(&queued_bt_mtx);
+	g_hash_table_remove_all(bt_hash);
+	g_mutex_unlock(&bt_mtx);
+
 	g_mutex_lock(&core_status.processing_mtx);
 	g_hash_table_remove_all(core_status.processing_oops);
 	g_mutex_unlock(&core_status.processing_mtx);
-
-	g_hash_table_remove_all(core_status.queued_oops);
 }
 
-static void write_logfile(int count, char *wsubmit_url)
+static size_t writefunction(void *ptr, size_t size, size_t nmemb, void __attribute((unused)) *stream)
 {
-	openlog("corewatcher", 0, LOG_KERN);
-	syslog(LOG_WARNING, "Submitted %i coredump signatures to %s", count, wsubmit_url);
-	closelog();
-}
+	char *httppost_ret = NULL;
+	char *errstr1 = NULL;
+	char *errstr2 = NULL;
+	int ret = 0;
 
-static size_t writefunction( void *ptr, size_t size, size_t nmemb, void __attribute((unused)) *stream)
-{
-	char *c = NULL, *c1 = NULL, *c2 = NULL;
-	c = malloc(size * nmemb + 1);
-	if (!c)
+	httppost_ret = malloc(size * nmemb + 1);
+	if (!httppost_ret)
 		return -1;
 
-	memset(c, 0, size * nmemb + 1);
-	memcpy(c, ptr, size * nmemb);
-	printf("received %s \n", c);
-	c1 = strstr(c, "201 ");
-	if (c1) {
-		c1 += 4;
-		if (c1 >= c + strlen(c)) {
-			free(c);
-			return -1;
-		}
-		c2 = strchr(c1, '\n');
-		if (c2) *c2 = 0;
-		strncpy(result_url, c1, 4095);
-	}
-	free(c);
-	return size * nmemb;
+	memset(httppost_ret, 0, size * nmemb + 1);
+	memcpy(httppost_ret, ptr, size * nmemb);
+
+	fprintf(stderr, "+ received:\n");
+	fprintf(stderr, "%s", httppost_ret);
+	fprintf(stderr, "\n\n");
+
+	errstr1 = strstr(httppost_ret, "the server encountered an error");
+	errstr2 = strstr(httppost_ret, "ScannerError at /crash_submit/");
+	if (errstr1 || errstr2)
+		ret = -1;
+	else
+		ret = size * nmemb;
+
+	free(httppost_ret);
+	return ret;
 }
 
 /*
@@ -195,143 +169,143 @@ char *replace_name(char *filename, char *replace, char *new)
 }
 
 /*
- * Attempts to send the oops queue to the submission url wsubmit_url,
- * will use proxy if configured.
+ * Worker thread for submitting backtraces
  *
+ * Picks up and sets down the bt_mtx.
  * Picks up and sets down the processing_mtx.
- * Expects queued_mtx to be held.
  */
-static void submit_queue_with_url(struct oops *queue, char *wsubmit_url, char *proxy)
+void *submit_loop(void __unused *unused)
 {
-	int result = 0;
+	int i = 0, n = 0, sentcount, failcount;
 	struct oops *oops = NULL;
-	CURL *handle = NULL;
-	int count = 0;
-
-	handle = curl_easy_init();
-	curl_easy_setopt(handle, CURLOPT_URL, wsubmit_url);
-	if (proxy)
-		curl_easy_setopt(handle, CURLOPT_PROXY, proxy);
-
-	oops = queue;
-	while (oops) {
-		struct curl_httppost *post = NULL;
-		struct curl_httppost *last = NULL;
-
-		/* set up the POST data */
-		curl_formadd(&post, &last,
-			CURLFORM_COPYNAME, "crash",
-			CURLFORM_COPYCONTENTS, oops->text, CURLFORM_END);
-
-		curl_easy_setopt(handle, CURLOPT_HTTPPOST, post);
-		curl_easy_setopt(handle, CURLOPT_WRITEFUNCTION, writefunction);
-		result = curl_easy_perform(handle);
-		curl_formfree(post);
-
-		if (!result) {
-			char *nf = NULL;
-			nf = replace_name(oops->filename, ".processed", ".submitted");
-			rename(oops->filename, nf);
-			g_mutex_lock(&core_status.processing_mtx);
-			remove_pid_from_hash(oops->filename, core_status.processing_oops);
-			g_mutex_unlock(&core_status.processing_mtx);
-			free(nf);
-
-			g_hash_table_remove(core_status.queued_oops, oops->filename);
-			count++;
-		} else {
-			g_hash_table_remove(core_status.queued_oops, oops->filename);
-			queue_backtrace(oops);
-		}
-		oops = oops->next;
-	}
-
-	curl_easy_cleanup(handle);
-
-	if (count && !testmode)
-		write_logfile(count, wsubmit_url);
-}
-
-/*
- * Entry function for submitting oops data.
- *
- * Picks up and sets down the queued_mtx.
- * Picks up and sets down the queued_bt_mtx.
- */
-void submit_queue(void)
-{
-	int i = 0, n = 0, submit = 0;
-	struct oops *queue = NULL, *oops = NULL, *next = NULL;
-	CURL *handle = NULL;
+	struct oops *work_list = NULL;
+	struct oops *requeue_list = NULL;
+	char *newfilename = NULL;
 	pxProxyFactory *pf = NULL;
 	char **proxies = NULL;
-	char *proxy = NULL;
+	int result = 0;
+	CURL *handle = NULL;
+	struct curl_httppost *post = NULL;
+	struct curl_httppost *last = NULL;
 
-	g_mutex_lock(&core_status.queued_mtx);
+	fprintf(stderr, "+ Begin submit_loop()\n");
 
-	if (!g_hash_table_size(core_status.queued_oops)) {
-		g_mutex_unlock(&core_status.queued_mtx);
-		return;
-	}
-
-	memset(result_url, 0, 4096);
+	bt_hash = g_hash_table_new(g_str_hash, g_str_equal);
 
 	if (testmode) {
+		fprintf(stderr, "+ The queue contains:\n");
 		print_queue();
-		g_mutex_unlock(&core_status.queued_mtx);
-		return;
+		fprintf(stderr, "+ Leaving submit_loop(), testmode\n");
+		return NULL;
 	}
 
-	g_mutex_lock(&queued_bt_mtx);
-	queue = queued_backtraces;
-	queued_backtraces = NULL;
-	barrier();
-	g_mutex_unlock(&queued_bt_mtx);
-
-	pf = px_proxy_factory_new();
-	handle = curl_easy_init();
-	curl_easy_setopt(handle, CURLOPT_NOBODY, 1);
-	curl_easy_setopt(handle, CURLOPT_TIMEOUT, 5);
-
-	for (i = 0; i < url_count; i++) {
-		curl_easy_setopt(handle, CURLOPT_URL, submit_url[i]);
-		if (pf)
-			proxies = px_proxy_factory_get_proxies(pf, submit_url[i]);
-		if (proxies) {
-			proxy = proxies[0];
-			curl_easy_setopt(handle, CURLOPT_PROXY, proxy);
-		} else {
-			proxy = NULL;
+	while (1) {
+		g_mutex_lock(&bt_mtx);
+		while (!bt_list) {
+			if (requeue_list) {
+				bt_list = requeue_list;
+				requeue_list = NULL;
+				fprintf(stderr, "+ submit_loop() requeued old work, awaiting new work\n");
+			} else {
+				fprintf(stderr, "+ submit_loop() queue empty, awaiting new work\n");
+			}
+			g_cond_wait(&bt_work, &bt_mtx);
 		}
-		if (!curl_easy_perform(handle)) {
-			submit_queue_with_url(queue, submit_url[i], proxy);
-			submit = 1;
+		fprintf(stderr, "+ submit_loop() checking for work\n");
+		/* pull out current work and release the mutex */
+		work_list = bt_list;
+		bt_list = NULL;
+		g_mutex_unlock(&bt_mtx);
+
+		/* net init */
+		handle = curl_easy_init();
+		pf = px_proxy_factory_new();
+		curl_easy_setopt(handle, CURLOPT_NOBODY, 1);
+		curl_easy_setopt(handle, CURLOPT_TIMEOUT, 5);
+
+		sentcount = 0;
+		failcount = 0;
+
+		/* try to find a good url/proxy combo */
+		for (i = 0; i < url_count; i++) {
+			curl_easy_setopt(handle, CURLOPT_URL, submit_url[i]);
+
+			/* use a proxy if one is present */
+			if (pf) {
+				proxies = px_proxy_factory_get_proxies(pf, submit_url[i]);
+				if (proxies)
+					curl_easy_setopt(handle, CURLOPT_PROXY, proxies[0]);
+			}
+
+			/* check the connection before POSTing form */
+			result = curl_easy_perform(handle);
+			if (result)
+				continue;
+
+			/* have a good url/proxy now...send reports there */
+			while (work_list) {
+				oops = work_list;
+				work_list = oops->next;
+				oops->next = NULL;
+
+				fprintf(stderr, "+ attempting to POST %s\n", oops->detail_filename);
+
+				/* set up the POST data */
+				curl_formadd(&post, &last,
+					CURLFORM_COPYNAME, "crash",
+					CURLFORM_COPYCONTENTS, oops->text, CURLFORM_END);
+				curl_easy_setopt(handle, CURLOPT_HTTPPOST, post);
+				curl_easy_setopt(handle, CURLOPT_WRITEFUNCTION, writefunction);
+				result = curl_easy_perform(handle);
+				curl_formfree(post);
+
+				if (!result) {
+					fprintf(stderr, "+ successfully sent %s\n", oops->detail_filename);
+					sentcount++;
+
+					newfilename = replace_name(oops->filename, ".processed", ".submitted");
+					rename(oops->filename, newfilename);
+					free(newfilename);
+
+					g_mutex_lock(&core_status.processing_mtx);
+					remove_name_from_hash(oops->filename, core_status.processing_oops);
+					g_mutex_unlock(&core_status.processing_mtx);
+
+					g_mutex_lock(&bt_mtx);
+					g_hash_table_remove(bt_hash, oops->filename);
+					g_mutex_unlock(&bt_mtx);
+					FREE_OOPS(oops);
+				} else {
+					fprintf(stderr, "+ requeuing %s\n", oops->detail_filename);
+					failcount++;
+
+					oops->next = requeue_list;
+					requeue_list = oops;
+				}
+			}
+
 			for (n = 0; proxies[n]; n++)
 				free(proxies[n]);
 			free(proxies);
-			break;
+
+			openlog("corewatcher", 0, LOG_KERN);
+			if (sentcount)
+				syslog(LOG_WARNING, "Successful sent %d coredump signatures to %s", sentcount, submit_url[i]);
+			if (failcount)
+				syslog(LOG_WARNING, "Failed to send %d coredump signatures to %s", failcount, submit_url[i]);
+			closelog();
 		}
-		for (n = 0; proxies[n]; n++)
-			free(proxies[n]);
-		free(proxies);
+
+		px_proxy_factory_free(pf);
+		curl_easy_cleanup(handle);
 	}
 
-	px_proxy_factory_free(pf);
+	fprintf(stderr, "+ End submit_loop()\n");
 
-	if (submit) {
-		oops = queue;
-		while (oops) {
-			next = oops->next;
-			FREE_OOPS(oops);
-			oops = next;
-		}
-	} else {
-		g_mutex_lock(&queued_bt_mtx);
-		queued_backtraces = queue;
-		g_mutex_unlock(&queued_bt_mtx);
-	}
-
-	curl_easy_cleanup(handle);
+	/* curl docs say this is not thread safe...but we never get here*/
 	curl_global_cleanup();
-	g_mutex_unlock(&core_status.queued_mtx);
+
+	g_hash_table_destroy(bt_hash);
+
+	return NULL;
 }
