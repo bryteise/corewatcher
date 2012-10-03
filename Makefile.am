@@ -14,4 +14,5 @@ dist_systemdunit_DATA = src/corewatcher.service
 
 EXTRA_DIST = \
 	COPYING \
+	README \
 	$(man_MANS)

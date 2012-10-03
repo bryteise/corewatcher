@@ -1,0 +1,107 @@
+                          README for corewatcher
+
+
+The corewatcher package provides a daemon for monitoring a system for
+crashes.  Crashes are analyzed and summary crash report information is
+sent to a crashdb server.
+
+The daemon is managed by a systemd unit file, corewatcher.service.
+
+Configuration is stored in /etc/corewatcher.
+
+Corefiles are assumed to be written to /var/lib/corewatcher by the
+kernel with /proc/sys/kernel settings of:
+   core_pattern=/var/lib/corewatcher/core_%e_%t
+   core_uses_pid=1
+
+To build and run, use the standard autotools workflow like:
+   ./configure
+   make
+   sudo make install
+
+
+===========================================================================
+
+
+The corewatcher daemon can be considered to be a state machine with the
+following 5 possible states and the listed major functions called for
+state transitions:
+
+S1: core_folder has no core_*
+ |
+ |	crash happens leading to inotification
+ |
+S2: core_folder has core_* present
+ |
+ |	scan_core_folder()
+ |	get_appfile()
+ |	move_core(fullpath, "to-process")
+ |
+S3: processed_folder has some core_*.to-process
+ |
+ |	scan_processed_folders()
+ |	process_corefile()
+ |	process_new()
+ |		(calls gdb, creates report summary *.txt)
+ |	queue_backtrace()
+ |
+S4: processed_folder has some core_*.processed
+ |
+ |	scan_processed_folder()
+ |	reprocess_corefile()
+ |	process_old()
+ |	queue_backtrace()
+ .
+ .
+ .
+unqueueing
+ |
+ |	submit_loop(): a sleepy thread whose work condition is set in
+ |	               queue_backtrace() and in the period timer
+ |	               "cleanup" thread
+ |
+S5: processed_folder has only core_*.submitted and *.txt
+
+
+NOTES:
+o at daemon start any of the states in the filesystem could exist, so we
+  need to do all of get_appfile()/move_core(), process_new(), process_old()
+  and submit_loop()
+o during submission, crash reports are removed from the in-memory pending
+  work list for submission, then if curl POST fails, the associated cores
+  stay in the filesystem as "processed" files, and re-added to the in-memory
+  work list
+  -  if client network is down and comes back up, an event notifier
+     could trigger resubmit via reprocess_corefile() and submit_loop()
+  -  if server or intermediate connectivity was the problem, only a
+     periodic timer can attempt to resubmit via reprocess_corefile() and
+     setting the work condition for submit_loop()
+  -  failed submissions should hang out at the end of the work queue in
+     case there is something truly wrong with them so new reports have a
+     better chance of getting through
+
+
+===========================================================================
+
+
+Internals: locking & global state
+
+  o  core_status is a global struct
+  o  ordering:
+          "processing_mtx -> gdb_mtx ->processing_queue_mtx"
+  o  core_status.processing_mtx:
+     - protects: core_status.processing_oops GHashTable
+  o  processing_queue_mtx: (coredump.c)
+     - protects: processing_queue array of corefile fullpath strings
+  o  gdb_mtx: (coredump.c)
+     - intent was to insure gdb doesn't run concurrently, under an assumption
+       that simultaneously processing multiple cores is too resource intensive
+       and system-unfriendly
+  o  bt_mtx: (submit.c)
+     - protects:
+        o  bt_list struct oops linked list
+        o  bt_work GCond condition variable
+        o  bt_hash GHashTable of core file names
+        o  A struct oops may exist off of bt_list and still referenced by name
+           in be in bt_hash.  Such a struct oops must exist if the core name
+           is in the bt_hash.
