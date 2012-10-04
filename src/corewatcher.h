@@ -70,7 +70,7 @@ extern void *submit_loop(void * unused);
 
 /* coredump.c */
 extern int move_core(char *fullpath, char *ext);
-extern int scan_corefolders(void * unused);
+extern int scan_folders(void * unused);
 extern char *strip_directories(char *fullpath);
 extern char *get_core_filename(char *filename, char *ext);
 extern void remove_name_from_hash(char *fullpath, GHashTable *ht);

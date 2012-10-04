@@ -119,7 +119,7 @@ void *inotify_loop(void __unused *unused)
 	loop = g_main_loop_ref(loop);
 	source = g_source_new(&InotifySourceFuncs, sizeof(GSource));
 	g_source_attach(source, context);
-	g_source_set_callback(source, scan_corefolders, NULL, NULL);
+	g_source_set_callback(source, scan_folders, NULL, NULL);
 
 	fprintf(stderr, "+ inotify loop starting\n");
 	g_main_loop_run(loop);

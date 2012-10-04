@@ -176,7 +176,7 @@ int main(int argc, char**argv)
 		return EXIT_FAILURE;
 	}
 
-	scan_corefolders(NULL);
+	scan_folders(NULL);
 
 	if (testmode) {
 		fprintf(stderr, "+ Exiting from testmode\n");
@@ -189,7 +189,7 @@ int main(int argc, char**argv)
 
 	/*
 	 * TODO: add a thread / event source tied to a connmand plugin
-	 *  o  network up: trigger scan_corefolders(), enables event sources
+	 *  o  network up: trigger scan_folders(), enables event sources
 	 *  o  network down: disable sources (or allow them to run and create
 	 *     a low quality crash reports?)
 	 *  o  low bandwidth net up: allow transmitting of .txt crash
@@ -203,7 +203,7 @@ int main(int argc, char**argv)
 	 * long poll for crashes: at inotify time we might not have been
 	 * able to fully process things, here we'd push those reports out
 	 */
-	g_timeout_add_seconds(900, scan_corefolders, NULL);
+	g_timeout_add_seconds(900, scan_folders, NULL);
 
 	g_main_loop_run(loop);
 out:

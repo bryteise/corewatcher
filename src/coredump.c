@@ -849,7 +849,7 @@ static void scan_processed_folder(void __unused *unused)
 	fprintf(stderr, "+ End scanning %s...\n", processed_folder);
 }
 
-int scan_corefolders(void __unused *unused)
+int scan_folders(void __unused *unused)
 {
 	scan_core_folder(NULL);
 	scan_processed_folder(NULL);
