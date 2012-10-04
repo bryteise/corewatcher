@@ -53,10 +53,8 @@ struct oops {
 	char *detail_filename;
 };
 
-/* Always pick up the queued_mtx and then the
-   processing_mtx, reverse for setting down */
 /* Considering the static mutexes the total global order should be:
-   queued_mtx -> processing_mtx -> gdb_mtx ->processing_queue_mtx */
+       processing_mtx -> gdb_mtx ->processing_queue_mtx */
 struct core_status {
 	GHashTable *processing_oops;
 	GMutex processing_mtx;

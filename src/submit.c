@@ -37,8 +37,6 @@
 
 #include "corewatcher.h"
 
-/* Always pick up the queued_mtx and then the
-   queued_bt_mtx, reverse for setting down */
 GMutex bt_mtx;
 GCond bt_work;
 GHashTable *bt_hash;
