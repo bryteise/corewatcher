@@ -1,5 +1,5 @@
 AC_PREREQ([2.68])
-AC_INIT([nitra-corewatcher],[0.9.5],[timothy.c.pepper@linux.intel.com])
+AC_INIT([nitra-corewatcher],[0.9.6],[timothy.c.pepper@linux.intel.com])
 AM_INIT_AUTOMAKE([foreign -Wall -Werror])
 AC_CONFIG_FILES([Makefile src/Makefile])
 AC_CONFIG_SRCDIR([src/corewatcher.c])
@@ -11,10 +11,8 @@ AM_PROG_CC_C_O
 AC_PROG_INSTALL
 
 # PkgConfig tests
-PKG_CHECK_MODULES([GLIB2], [glib-2.0])
-PKG_CHECK_MODULES([LIBPROXY], [libproxy-1.0])
-PKG_CHECK_MODULES([LIBNOTIFY], [libnotify])
-PKG_CHECK_MODULES([LIBCURL], [libcurl])
+PKG_CHECK_MODULES([glib], [glib-2.0 gthread-2.0])
+PKG_CHECK_MODULES([curl], [libcurl])
 
 # Checks for header files.
 AC_CHECK_HEADERS([stdio.h assert.h sys/types.h sys/stat.h dirent.h signal.h errno.h sched.h fcntl.h stdlib.h string.h sys/time.h syslog.h unistd.h asm/unistd.h])

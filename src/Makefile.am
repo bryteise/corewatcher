@@ -15,17 +15,8 @@ corewatcher_SOURCES = \
 	find_file.c \
 	submit.c
 
-corewatcher_CFLAGS = \
-	$(AM_CFLAGS) \
-	$(LIBPROXY_CFLAGS) \
-	$(LIBNOTIFY_CFLAGS) \
-	$(LIBCURL_CFLAGS)
-
-corewatcher_LDADD = \
-	$(GLIB2_LIBS) \
-	$(LIBPROXY_LIBS) \
-	$(LIBNOTIFY_LIBS) \
-	$(LIBCURL_LIBS)
-
 noinst_HEADERS = \
 	corewatcher.h
+
+AM_CPPFLAGS = $(AM_CFLAGS) $(glib_CFLAGS) ${curl_CFLAGS}
+corewatcher_LDADD = $(glib_LIBS) ${curl_LIBS}

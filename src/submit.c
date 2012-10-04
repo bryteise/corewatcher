@@ -33,7 +33,6 @@
 #include <sys/stat.h>
 #include <glib.h>
 #include <asm/unistd.h>
-#include <proxy.h>
 #include <curl/curl.h>
 
 #include "corewatcher.h"
@@ -103,8 +102,6 @@ static void print_queue(void)
 static size_t writefunction(void *ptr, size_t size, size_t nmemb, void __attribute((unused)) *stream)
 {
 	char *httppost_ret = NULL;
-	char *errstr1 = NULL;
-	char *errstr2 = NULL;
 	int ret = 0;
 
 	httppost_ret = malloc(size * nmemb + 1);
@@ -118,13 +115,21 @@ static size_t writefunction(void *ptr, size_t size, size_t nmemb, void __attribu
 	fprintf(stderr, "%s", httppost_ret);
 	fprintf(stderr, "\n\n");
 
-	errstr1 = strstr(httppost_ret, "the server encountered an error");
-	errstr2 = strstr(httppost_ret, "ScannerError at /crash_submit/");
-	if (errstr1 || errstr2)
+	if (strstr(httppost_ret, "the server encountered an error") != NULL) {
 		ret = -1;
-	else
-		ret = size * nmemb;
+		goto err;
+	}
+	if (strstr(httppost_ret, "ScannerError at /crash_submit/") != NULL) {
+		ret = -1;
+		goto err;
+	}
+	if (strstr(httppost_ret, "was not found on this server") != NULL) {
+		ret = -1;
+		goto err;
+	}
 
+	ret = size * nmemb;
+err:
 	free(httppost_ret);
 	return ret;
 }
@@ -168,6 +173,36 @@ char *replace_name(char *filename, char *replace, char *new)
 	return newfile;
 }
 
+void report_good_send(int *sentcount, struct oops *oops)
+{
+	char *newfilename = NULL;
+
+	fprintf(stderr, "+ successfully sent %s\n", oops->detail_filename);
+	sentcount++;
+
+	newfilename = replace_name(oops->filename, ".processed", ".submitted");
+	rename(oops->filename, newfilename);
+	free(newfilename);
+
+	g_mutex_lock(&core_status.processing_mtx);
+	remove_name_from_hash(oops->filename, core_status.processing_oops);
+	g_mutex_unlock(&core_status.processing_mtx);
+
+	g_mutex_lock(&bt_mtx);
+	g_hash_table_remove(bt_hash, oops->filename);
+	g_mutex_unlock(&bt_mtx);
+	FREE_OOPS(oops);
+}
+
+void report_fail_send(int *failcount, struct oops *oops, struct oops *requeue_list)
+{
+	fprintf(stderr, "+ requeuing %s\n", oops->detail_filename);
+	failcount++;
+
+	oops->next = requeue_list;
+	requeue_list = oops;
+}
+
 /*
  * Worker thread for submitting backtraces
  *
@@ -176,13 +211,10 @@ char *replace_name(char *filename, char *replace, char *new)
  */
 void *submit_loop(void __unused *unused)
 {
-	int i = 0, n = 0, sentcount, failcount;
+	int i = 0, sentcount, failcount;
 	struct oops *oops = NULL;
 	struct oops *work_list = NULL;
 	struct oops *requeue_list = NULL;
-	char *newfilename = NULL;
-	pxProxyFactory *pf = NULL;
-	char **proxies = NULL;
 	int result = 0;
 	CURL *handle = NULL;
 	struct curl_httppost *post = NULL;
@@ -219,28 +251,22 @@ void *submit_loop(void __unused *unused)
 
 		/* net init */
 		handle = curl_easy_init();
-		pf = px_proxy_factory_new();
 		curl_easy_setopt(handle, CURLOPT_NOBODY, 1);
 		curl_easy_setopt(handle, CURLOPT_TIMEOUT, 5);
 
 		sentcount = 0;
 		failcount = 0;
 
-		/* try to find a good url/proxy combo */
+		/* try to find a good url (curl automagically will use config'd proxies */
 		for (i = 0; i < url_count; i++) {
 			curl_easy_setopt(handle, CURLOPT_URL, submit_url[i]);
 
-			/* use a proxy if one is present */
-			if (pf) {
-				proxies = px_proxy_factory_get_proxies(pf, submit_url[i]);
-				if (proxies)
-					curl_easy_setopt(handle, CURLOPT_PROXY, proxies[0]);
-			}
-
 			/* check the connection before POSTing form */
 			result = curl_easy_perform(handle);
-			if (result)
+			if (result) {
+				fprintf(stderr, "+ unable to contact %s\n", submit_url[i]);
 				continue;
+			}
 
 			/* have a good url/proxy now...send reports there */
 			while (work_list) {
@@ -260,33 +286,11 @@ void *submit_loop(void __unused *unused)
 				curl_formfree(post);
 
 				if (!result) {
-					fprintf(stderr, "+ successfully sent %s\n", oops->detail_filename);
-					sentcount++;
-
-					newfilename = replace_name(oops->filename, ".processed", ".submitted");
-					rename(oops->filename, newfilename);
-					free(newfilename);
-
-					g_mutex_lock(&core_status.processing_mtx);
-					remove_name_from_hash(oops->filename, core_status.processing_oops);
-					g_mutex_unlock(&core_status.processing_mtx);
-
-					g_mutex_lock(&bt_mtx);
-					g_hash_table_remove(bt_hash, oops->filename);
-					g_mutex_unlock(&bt_mtx);
-					FREE_OOPS(oops);
+					report_good_send(&sentcount, oops);
 				} else {
-					fprintf(stderr, "+ requeuing %s\n", oops->detail_filename);
-					failcount++;
-
-					oops->next = requeue_list;
-					requeue_list = oops;
+					report_fail_send(&failcount, oops, requeue_list);
 				}
 			}
-
-			for (n = 0; proxies[n]; n++)
-				free(proxies[n]);
-			free(proxies);
 
 			openlog("corewatcher", 0, LOG_KERN);
 			if (sentcount)
@@ -295,8 +299,11 @@ void *submit_loop(void __unused *unused)
 				syslog(LOG_WARNING, "Failed to send %d coredump signatures to %s", failcount, submit_url[i]);
 			closelog();
 		}
+		if (work_list) {
+			work_list->next = requeue_list;
+			requeue_list = work_list;
+		}
 
-		px_proxy_factory_free(pf);
 		curl_easy_cleanup(handle);
 	}
 
