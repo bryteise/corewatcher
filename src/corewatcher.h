@@ -76,8 +76,6 @@ extern int scan_corefolders(void * unused);
 extern char *strip_directories(char *fullpath);
 extern char *get_core_filename(char *filename, char *ext);
 extern void remove_name_from_hash(char *fullpath, GHashTable *ht);
-extern int uid;
-extern int sig;
 extern const char *core_folder;
 extern const char *processed_folder;
 

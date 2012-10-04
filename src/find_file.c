@@ -107,6 +107,7 @@ char *find_coredump(char *fullpath)
 		if (c) {
 			c += 6;
 			if (c < line_len) {
+				int uid;
 				sscanf(c, "%i", &uid);
 				fprintf(stderr, "+ uid: %d\n", uid);
 			}
@@ -116,6 +117,7 @@ char *find_coredump(char *fullpath)
 		if (c) {
 			c += 8;
 			if (c < line_len) {
+				int sig;
 				sscanf(c, "%i", &sig);
 				fprintf(stderr, "+ sig: %d\n", sig);
 			}

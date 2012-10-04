@@ -36,14 +36,10 @@
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <dirent.h>
-#include <signal.h>
 #include <glib.h>
 #include <errno.h>
 
 #include "corewatcher.h"
-
-int uid = 0;
-int sig = 0;
 
 const char *core_folder = "/var/lib/corewatcher/";
 const char *processed_folder = "/var/lib/corewatcher/processed/";
