@@ -41,23 +41,17 @@
 
 #include "corewatcher.h"
 
-const char *core_folder = "/var/lib/corewatcher/";
-const char *processed_folder = "/var/lib/corewatcher/processed/";
-
-/* Always pick up the processing_mtx and then the
-   processing_queue_mtx, reverse for setting down */
-/* Always pick up the gdb_mtx and then the
-   processing_queue_mtx, reverse for setting down */
-/* Always pick up the processing_mtx and then the
-   gdb_mtx, reverse for setting down */
-/* so order for pick up should be:
-   processing_mtx -> gdb_mtx -> processing_queue_mtx
-   and the reverse for setting down */
-GMutex processing_queue_mtx;
-static char *processing_queue[MAX_PROCESSING_OOPS];
-static int pq_tail = 0;
-static int pq_head = 0;
-GMutex gdb_mtx;
+/*
+ * processing "queue" loop's condition variable and associated
+ * lock.  Note the queue is an implicit data structure consisting
+ * of the non-submitted core files in the filesystem, but the bool pq is
+ * used to mark whether the "queue" holds something to prevent the possible
+ * race where the condition is set before the thread is awaiting it and
+ * thus is not woken.
+ */
+static GMutex pq_mtx;
+static gboolean pq = FALSE;
+static GCond pq_work;
 
 static char *get_release(void)
 {
@@ -100,6 +94,7 @@ char *strip_directories(char *fullpath)
 {
 	char *dfile = NULL, *c1 = NULL, *c2 = NULL, *r = NULL;
 	char delim[] = "/";
+	char *saveptr;
 
 	if (!fullpath)
 		return NULL;
@@ -108,14 +103,15 @@ char *strip_directories(char *fullpath)
 	if (!dfile)
 		return NULL;
 
-	c1 = strtok(dfile, delim);
+	c1 = strtok_r(dfile, delim, &saveptr);
 	while(c1) {
 		c2 = c1;
-		c1 = strtok(NULL, delim);
+		c1 = strtok_r(NULL, delim, &saveptr);
 	}
 
 	if (c2)
 		r = strdup(c2);
+
 	free(dfile);
 
 	return r;
@@ -126,11 +122,11 @@ char *strip_directories(char *fullpath)
  * If this type of core has recently been seen, unlink this more recent
  * example in order to rate limit submissions of extremely crashy
  * applications.
- * Add extension if given and attempt to create directories if needed.
+ * Add extension and attempt to create directories if needed.
  */
-int move_core(char *fullpath, char *extension)
+static int move_core(char *fullpath, char *extension)
 {
-	char *corefilename = NULL, newpath[8192], *coreprefix = NULL;
+	char *corefilename = NULL, *newpath = NULL, *coreprefix = NULL;
 	char *s = NULL;
 	size_t prefix_len;
 	DIR *dir = NULL;
@@ -139,7 +135,8 @@ int move_core(char *fullpath, char *extension)
 	if (!fullpath)
 		return -1;
 
-	if (!(corefilename = strip_directories(fullpath)))
+	corefilename = strip_directories(fullpath);
+	if (!corefilename)
 		return -ENOMEM;
 
 	/* if the corefile's name minus any suffixes (such as .$PID) and
@@ -149,10 +146,17 @@ int move_core(char *fullpath, char *extension)
 	 * submission.  TODO: consider a (configurable) time delta greater
 	 * than which the cores must be separated, stat'ing the files, etc.
 	 */
-	if (!(coreprefix = strdup(corefilename)))
+	coreprefix = strdup(corefilename);
+	if (!coreprefix) {
+		free(corefilename);
 		return -ENOMEM;
-	if (!(s = strstr(coreprefix, ".")))
+	}
+	s = strstr(coreprefix, ".");
+	if (!s) {
+		free(coreprefix);
+		free(corefilename);
 		return -1;
+	}
 	*s = '\0';
 	prefix_len = strlen(coreprefix);
 	if (prefix_len > 2) {
@@ -175,59 +179,31 @@ int move_core(char *fullpath, char *extension)
 			continue;
 		fprintf(stderr, "+ ...ignoring/unlinking %s\n", fullpath);
 		unlink(fullpath);
+		closedir(dir);
 		goto error;
 	}
+	closedir(dir);
 
-	if (extension)
-		snprintf(newpath, 8192, "%s%s.%s", processed_folder, corefilename, extension);
-	else
-		snprintf(newpath, 8192, "%s%s", processed_folder, corefilename);
+	if (asprintf(&newpath, "%s%s.%s", processed_folder, corefilename, extension) == -1)
+		goto error;
 
 	free(coreprefix);
 	free(corefilename);
 	rename(fullpath, newpath);
-
+	free(newpath);
 	return 0;
+
 error:
 	free(coreprefix);
 	free(corefilename);
 	return -1;
 }
 
-/*
- * Finds the full path for the application that crashed,
- * and moves file to processed_folder for processing
- */
-static char *get_appfile(char *fullpath)
-{
-	char *appname = NULL, *appfile = NULL;
-
-	if (!fullpath)
-		return NULL;
-
-	appname = find_coredump(fullpath);
-	if (!appname)
-		return NULL;
-
-	/* don't try and do anything for rpm, gdb or corewatcher crashes */
-	if (!(strcmp(appname, "rpm") && strcmp(appname, "gdb") && strcmp(appname, "corewatcher")))
-		return NULL;
-
-	appfile = find_executable(appname);
-	/* appname no longer used, so free it as it was strdup'd */
-	free(appname);
-	if (!appfile)
-		return NULL;
-
-	move_core(fullpath, "to-process");
-
-	return appfile;
-}
 
 /*
  * Use GDB to extract backtrace information from corefile
  */
-static struct oops *extract_core(char *fullpath, char *appfile)
+static struct oops *extract_core(char *fullpath, char *appfile, char *reportname)
 {
 	struct oops *oops = NULL;
 	int ret = 0;
@@ -363,17 +339,19 @@ static struct oops *extract_core(char *fullpath, char *appfile)
 		return NULL;
 	}
 	memset(oops, 0, sizeof(struct oops));
-	oops->application = appfile;
+	oops->next = NULL;
+	oops->application = strdup(appfile);
 	oops->text = text;
 	oops->filename = strdup(fullpath);
+	oops->detail_filename = strdup(reportname);
 	return oops;
 }
 
 /*
  * input filename has the form: core_$APP_$TIMESTAMP[.$PID]
- * output filename has form of: $APP_$TIMESTAMP[.ext]
+ * output filename has form of: $APP_$TIMESTAMP.txt
  */
-char *get_core_filename(char *filename, char *ext)
+static char *make_report_filename(char *filename)
 {
 	char *name = NULL, *dotpid = NULL, *stamp = NULL, *detail_filename = NULL;
 
@@ -394,16 +372,9 @@ char *get_core_filename(char *filename, char *ext)
 	if (dotpid)
 		*dotpid = '\0';
 
-	if (ext) {
-		if ((asprintf(&detail_filename, "%s%s.%s", processed_folder, name, ext)) == -1) {
-			free(name);
-			return NULL;
-		}
-	} else {
-		if ((asprintf(&detail_filename, "%s%s", processed_folder, name)) == -1) {
-			free(name);
-			return NULL;
-		}
+	if ((asprintf(&detail_filename, "%s%s.txt", processed_folder, name)) == -1) {
+		free(name);
+		return NULL;
 	}
 	free(name);
 
@@ -414,359 +385,197 @@ char *get_core_filename(char *filename, char *ext)
  * Write the backtrace from the core file into a text
  * file named as $APP_$TIMESTAMP.txt
  */
-static void write_core_detail_file(char *filename, char *text)
+static void write_core_detail_file(struct oops *oops)
 {
 	int fd = 0;
-	char *detail_filename = NULL;
 
-	if (!filename || !text)
+	if (!oops->detail_filename)
 		return;
 
-	if (!(detail_filename = get_core_filename(filename, "txt")))
-		return;
-
-	if ((fd = open(detail_filename, O_WRONLY | O_CREAT | O_TRUNC, 0)) != -1) {
-		if(write(fd, text, strlen(text)) >= 0) {
-			fchmod(fd, 0644);
-		} else {
-			fprintf(stderr, "+ ...ignoring/unlinking %s\n", detail_filename);
-			unlink(detail_filename);
-		}
-		close(fd);
-	}
-	free(detail_filename);
-}
-
-/*
- * Removes corefile (core.XXXX) from the processing_queue.
- *
- * Expects the processing_queue_mtx to be held.
- */
-static void remove_from_processing_queue(void)
-{
-	fprintf(stderr, "+ removing processing_queue head\n");
-	free(processing_queue[pq_head]);
-	processing_queue[pq_head++] = NULL;
-
-	if (pq_head == MAX_PROCESSING_OOPS) {
-		fprintf(stderr, "+ wrapping processing_queue head to 0 (bugs here?)\n");
-		pq_head = 0;
-	}
-}
-
-/*
- * Removes file from processing_oops hash based on core name,
- * extracting that core name from a fullpath such as
- * "/${processed_folder}/core_$APP_$TIMESTAMP.$PID"
- * in order to get just "$APP_$TIMESTAMP"
- *
- * Expects the lock on the given hash to be held.
- */
-void remove_name_from_hash(char *fullpath, GHashTable *ht)
-{
-	char *name = NULL, *corename = NULL, *shortname = NULL;
-
-	if (!(name = strip_directories(fullpath)))
-		return;
-
-	if (!(corename = get_core_filename(name, NULL))) {
-		free(name);
+	fd = open(oops->detail_filename, O_WRONLY | O_CREAT | O_TRUNC, 0);
+	if (fd == -1) {
+		fprintf(stderr, "+ Error creating/opening %s for write\n", oops->detail_filename);
 		return;
 	}
-	free(name);
 
-	if (!(shortname = strip_directories(corename))) {
-		free(corename);
-		return;
+	if(write(fd, oops->text, strlen(oops->text)) >= 0) {
+		fprintf(stderr, "+ Wrote %s\n", oops->detail_filename);
+		fchmod(fd, 0644);
+	} else {
+		fprintf(stderr, "+ Error writing %s\n", oops->detail_filename);
+		unlink(oops->detail_filename);
 	}
-	free(corename);
-
-	if (g_hash_table_remove(ht, shortname))
-		fprintf(stderr, "+ core %s removed from processing_oops hash table\n", shortname);
-	else
-		fprintf(stderr, "+ core %s not in processing_oops hash table\n", shortname);
-
-	free(shortname);
+	close(fd);
 }
 
 /*
  * Common function for processing core
- * files to generate oops structures
+ * files to generate oops structures and write *.txt
+ * if not already present
  */
 static struct oops *process_common(char *fullpath)
 {
 	struct oops *oops = NULL;
-	char *appname = NULL, *appfile = NULL;
+	char *appname = NULL, *appfile = NULL, *corefn = NULL, *reportname = NULL;
+	struct stat stat_buf;
 
-	if(!(appname = find_coredump(fullpath))) {
+	corefn = strip_directories(fullpath);
+	if (!corefn) {
+		fprintf(stderr, "+ No corefile? (%s)\n", fullpath);
 		return NULL;
 	}
 
-	if (!(appfile = find_executable(appname))) {
+	appname = find_causingapp(fullpath);
+	if (!appname) {
+		free(corefn);
+		free(reportname);
+		return NULL;
+	}
+	/*
+	 * don't process rpm, gdb or corewatcher crashes,
+	 * also skip apps which don't appear to be part of the OS
+	 */
+	appfile = find_apppath(appname);
+	if (!appfile ||
+	    !strncmp(appname, "rpm", 3) ||
+	    !strncmp(appname, "gdb", 3) ||
+	    !strncmp(appname, "corewatcher", 11)) {
+		free(corefn);
 		free(appname);
+		fprintf(stderr, "+ ...ignoring %s's %s\n", appname, fullpath);
+		move_core(fullpath, "skipped");
 		return NULL;
 	}
 	free(appname);
 
-	if (!(oops = extract_core(fullpath, appfile))) {
+	reportname = make_report_filename(corefn);
+	if (!reportname) {
+		fprintf(stderr, "+ Couldn't make report name for %s\n", corefn);
+		free(corefn);
 		free(appfile);
 		return NULL;
 	}
+	free(corefn);
+	if (stat(reportname, &stat_buf) == 0) {
+		int fd, ret;
+		/*
+		 * TODO:
+		 *   If the file already has trailing ".processed" and the txt file
+		 *   is a low quality report, then create a new report.
+		 */
+		fprintf(stderr, "+ Report already exists in %s\n", reportname);
+
+		oops = malloc(sizeof(struct oops));
+		if (!oops) {
+			fprintf(stderr, "+ Malloc failed for struct oops\n");
+			free(reportname);
+			free(appfile);
+			return NULL;
+		}
+		memset(oops, 0, sizeof(struct oops));
+
+		oops->next = NULL;
+		oops->application = strdup(appfile);
+		oops->filename = strdup(fullpath);
+		oops->detail_filename = strdup(reportname);
+		free(reportname);
+		free(appfile);
+
+		oops->text = malloc(stat_buf.st_size + 1);
+		if (!oops->text) {
+			fprintf(stderr, "+ Malloc failed for oops text\n");
+			goto err;
+		}
+		fd = open(oops->detail_filename, O_RDONLY);
+		if (fd == -1) {
+			fprintf(stderr, "+ Open failed for oops text\n");
+			goto err;
+		}
+		ret = read(fd, oops->text, stat_buf.st_size);
+		close(fd);
+		if (ret != stat_buf.st_size) {
+			fprintf(stderr, "+ Read failed for oops text\n");
+			goto err;
+		}
+		oops->text[stat_buf.st_size] = '\0';
+		return oops;
+	}
+
+	oops = extract_core(fullpath, appfile, reportname);
+	write_core_detail_file(oops);
+	free(reportname);
+	free(appfile);
+	return oops;
+err:
+	FREE_OOPS(oops);
+	return NULL;
+}
+
+
+/*
+ * Creates $APP_$TIMESTAMP.txt report summaries if they don't exist and
+ * adds the oops struct to the submit queue
+ */
+static void *create_report(char *fullpath)
+{
+	struct oops *oops = NULL;
+	char *procfn = NULL;
+	int new = 0, ret;
+
+	fprintf(stderr, "+ Entered create_report() for %s\n", fullpath);
+
+	/*
+ 	 * If the file has trailing ".to-process", create a new report.
+	 */
+	if (strstr(fullpath, ".to-process"))
+		new = 1;
+
+	oops = process_common(fullpath);
+	if (!oops) {
+		fprintf(stderr, "+ Did not generate struct oops for %s\n", fullpath);
+		return NULL;
+	}
+
+	if (new) {
+		procfn = replace_name(fullpath, ".to-process", ".processed");
+		if (!procfn) {
+			fprintf(stderr, "+ Problems with filename manipulation for %s\n", fullpath);
+			goto clean_process_new;
+		}
+		ret = rename(fullpath, procfn);
+		if (ret) {
+			fprintf(stderr, "+ Unable to move %s to %s\n", fullpath, procfn);
+			free(procfn);
+			goto clean_process_new;
+		}
+		free(oops->filename);
+		oops->filename = strdup(procfn);
+		free(procfn);
+	}
 
 	return oops;
-}
-
-
-/*
- * Processes .to-process core files.
- * Also creates the $APP_$TIMESTAMP.txt file and adds
- * the oops struct to the submit queue
- *
- * Picks up and sets down the gdb_mtx and
- * picks up and sets down the processing_queue_mtx.
- * (held at the same time in that order)
- */
-static void *process_new(void __unused *vp)
-{
-	struct oops *oops = NULL;
-	char *procfn = NULL, *corefn = NULL, *fullpath = NULL;
-
-	g_mutex_lock(&core_status.processing_mtx);
-	g_mutex_lock(&gdb_mtx);
-	g_mutex_lock(&processing_queue_mtx);
-
-	fprintf(stderr, "+ Entered process_new()\n");
-
-	if (!(fullpath = processing_queue[pq_head])) {
-		fprintf(stderr, "+ processing_queue corruption?\n");
-		g_mutex_unlock(&processing_queue_mtx);
-		g_mutex_unlock(&gdb_mtx);
-		g_mutex_unlock(&core_status.processing_mtx);
-		return NULL;
-	}
-
-	if (!(corefn = strip_directories(fullpath))) {
-		fprintf(stderr, "+ No corefile? (%s)\n", fullpath);
-		goto clean_process_new;
-	}
-
-	if (!(procfn = replace_name(fullpath, ".to-process", ".processed"))) {
-		fprintf(stderr, "+ Problems with filename manipulation for %s\n", corefn);
-		goto clean_process_new;
-	}
-
-	if (!(oops = process_common(fullpath))) {
-		fprintf(stderr, "+ Problems processing %s\n", procfn);
-		goto clean_process_new;
-	}
-
-	if (!(oops->detail_filename = get_core_filename(corefn, "txt"))) {
-		fprintf(stderr, "+ Problems with filename manipulation for %s\n", procfn);
-		goto clean_process_new;
-	}
-
-	if (rename(fullpath, procfn)) {
-		fprintf(stderr, "+ Unable to move %s to %s\n", fullpath, procfn);
-		goto clean_process_new;
-	}
-
-	free(oops->filename);
-	oops->filename = procfn;
-
-	remove_from_processing_queue();
-
-	g_mutex_unlock(&processing_queue_mtx);
-	g_mutex_unlock(&gdb_mtx);
-	g_mutex_unlock(&core_status.processing_mtx);
-
-	write_core_detail_file(corefn, oops->text);
-
-	queue_backtrace(oops);
-
-	fprintf(stderr, "+ Leaving process_new() with %s queued\n", oops->detail_filename);
-
-	/* mustn't free procfn because it was hung on oops->filename */
-	free(corefn);
-	return NULL;
 
 clean_process_new:
-	remove_name_from_hash(fullpath, core_status.processing_oops);
-	remove_from_processing_queue();
-	free(procfn);
-	free(corefn);
 	FREE_OOPS(oops);
-	g_mutex_unlock(&processing_queue_mtx);
-	g_mutex_unlock(&gdb_mtx);
-	g_mutex_unlock(&core_status.processing_mtx);
 	return NULL;
 }
 
 /*
- * Reprocesses .processed core files.
- *
- * Picks up and sets down the gdb_mtx.
- * Picks up and sets down the processing_queue_mtx.
- * (held at the same time in that order)
+ * scan once for core files in core_folder, moving any to the
+ * processed_folder with ".to-process" appended to their name
  */
-static void *process_old(void __unused *vp)
+int scan_core_folder(void __unused *unused)
 {
-	struct oops *oops = NULL;
-	char *corefn = NULL, *fullpath = NULL;
-
-	g_mutex_lock(&gdb_mtx);
-	g_mutex_lock(&processing_queue_mtx);
-
-	fprintf(stderr, "+ Entered process_old()\n");
-
-	if (!(fullpath = processing_queue[pq_head])) {
-		fprintf(stderr, "+ processing_queue corruption?\n");
-		g_mutex_unlock(&processing_queue_mtx);
-		g_mutex_unlock(&gdb_mtx);
-		return NULL;
-	}
-	fprintf(stderr, "+ Reprocessing %s\n", fullpath);
-
-	if (!(corefn = strip_directories(fullpath))) {
-		fprintf(stderr, "+ No corefile? (%s)\n", fullpath);
-		goto clean_process_old;
-	}
-
-	if (!(oops = process_common(fullpath))) {
-		fprintf(stderr, "+ Problems processing %s\n", corefn);
-		goto clean_process_old;
-	}
-
-	if (!(oops->detail_filename = get_core_filename(corefn, "txt"))) {
-		fprintf(stderr, "+ Problems with filename manipulation for %s\n", corefn);
-		goto clean_process_old;
-	}
-
-	remove_from_processing_queue();
-
-	g_mutex_unlock(&processing_queue_mtx);
-	g_mutex_unlock(&gdb_mtx);
-
-	queue_backtrace(oops);
-
-	fprintf(stderr, "+ Leaving process_old() with %s queued\n", oops->detail_filename);
-
-	free(corefn);
-	return NULL;
-
-clean_process_old:
-	remove_name_from_hash(fullpath, core_status.processing_oops);
-	remove_from_processing_queue();
-	free(corefn);
-	FREE_OOPS(oops);
-	g_mutex_unlock(&processing_queue_mtx);
-	g_mutex_unlock(&gdb_mtx);
-	return NULL;
-}
-
-/*
- * Adds corefile (based on name) to the processing_oops
- * hash table if it is not already there, then
- * tries to add to the processing_queue.
- *
- * Picks up and sets down the processing_mtx.
- * Picks up and sets down the processing_queue_mtx.
- */
-static int add_to_processing(char *fullpath)
-{
-	char *c1 = NULL, *c2 = NULL, *fp = NULL;
-
-	if (!fullpath)
-		return -1;
-
-	if (!(fp = strdup(fullpath)))
-		goto clean_add_to_processing;
-
-	if (!(c1 = get_core_filename(fp, NULL)))
-		goto clean_add_to_processing;
-
-	if (!(c2 = strip_directories(c1)))
-		goto clean_add_to_processing;
-
-	free(c1);
-	c1 = NULL;
-
-	g_mutex_lock(&core_status.processing_mtx);
-	if (g_hash_table_lookup(core_status.processing_oops, c2)) {
-		g_mutex_unlock(&core_status.processing_mtx);
-		fprintf(stderr, "+ ...name %s already in processing_oops hash table\n", c2);
-		goto clean_add_to_processing;
-	}
-
-	g_mutex_lock(&processing_queue_mtx);
-	if (processing_queue[pq_tail]) {
-		g_mutex_unlock(&processing_queue_mtx);
-		g_mutex_unlock(&core_status.processing_mtx);
-		fprintf(stderr, "+ ...processing_queue full\n");
-		goto clean_add_to_processing;
-	}
-
-	g_hash_table_insert(core_status.processing_oops, c2, c2);
-	processing_queue[pq_tail++] = fp;
-	if (pq_tail == MAX_PROCESSING_OOPS)
-		pq_tail = 0;
-
-	g_mutex_unlock(&processing_queue_mtx);
-	g_mutex_unlock(&core_status.processing_mtx);
-	return 0;
-clean_add_to_processing:
-	free(fp);
-	free(c1);
-	free(c2);
-	return -1;
-}
-
-/*
- * Entry for processing new core files.
- */
-static void process_corefile(char *fullpath)
-{
-	GThread *thrd = NULL;
-	int r = 1;
-
-	r = add_to_processing(fullpath);
-
-	if (r)
-		return;
-
-	thrd = g_thread_new("process_new", process_new, NULL);
-	if (thrd == NULL)
-		fprintf(stderr, "Couldn't start thread for process_new()\n");
-}
-
-/*
- * Entry for processing already seen core files.
- */
-static void reprocess_corefile(char *fullpath)
-{
-	GThread *thrd = NULL;
-	int r = 0;
-
-	r = add_to_processing(fullpath);
-
-	if (r)
-		return;
-
-	thrd = g_thread_new("process_old", process_old, NULL);
-	if (thrd == NULL)
-		fprintf(stderr, "Couldn't start thread for process_old()\n");
-}
-
-static void scan_core_folder(void __unused *unused)
-{
-	/* scan for new crash data */
 	DIR *dir = NULL;
 	struct dirent *entry = NULL;
-	char *fullpath = NULL, *appfile = NULL;
-	int r = 0;
+	char *fullpath = NULL;
+	int ret, work = 0;
 
 	dir = opendir(core_folder);
-	if (!dir)
-		return;
+	if (!dir) {
+		fprintf(stderr, "+ Unable to open %s\n", core_folder);
+		return -1;
+	}
 	fprintf(stderr, "+ Begin scanning %s...\n", core_folder);
 	while(1) {
 		free(fullpath);
@@ -781,11 +590,8 @@ static void scan_core_folder(void __unused *unused)
 			continue;
 
 		/* matched core_#### */
-		r = asprintf(&fullpath, "%s%s", core_folder, entry->d_name);
-		if (r == -1) {
+		if (asprintf(&fullpath, "%s%s", core_folder, entry->d_name) == -1) {
 			fullpath = NULL;
-			continue;
-		} else if (((unsigned int)r) != strlen(core_folder) + strlen(entry->d_name)) {
 			continue;
 		}
 
@@ -793,66 +599,96 @@ static void scan_core_folder(void __unused *unused)
 		 * might happen here.  */
 
 		fprintf(stderr, "+ Looking at %s\n", fullpath);
-		appfile = get_appfile(fullpath);
 
-		if (!appfile) {
-			fprintf(stderr, "+ ...ignoring/unlinking %s\n", fullpath);
-			unlink(fullpath);
-		} else {
-			free(appfile);
-			appfile = NULL;
-		}
+		ret = move_core(fullpath, "to-process");
+		if (ret == 0)
+			work++;
 	}
 	closedir(dir);
+
+	if (work) {
+		fprintf(stderr, "+ Found %d files, setting pq_work condition\n", work);
+		g_mutex_lock(&pq_mtx);
+		g_cond_signal(&pq_work);
+		pq = TRUE;
+		g_mutex_unlock(&pq_mtx);
+	}
+
 	fprintf(stderr, "+ End scanning %s...\n", core_folder);
+	return TRUE;
 }
 
-static void scan_processed_folder(void __unused *unused)
+/*
+ * scan for core_*.to-process and core_*.processed,
+ * insure a summary *.txt report exists, then queue it
+ */
+void *scan_processed_folder(void __unused *unused)
 {
-	/* scan for partially processed crash data */
 	DIR *dir = NULL;
 	struct dirent *entry = NULL;
 	char *fullpath = NULL;
-	int r = 0;
+	struct oops *oops = NULL;
 
-	dir = opendir(processed_folder);
-	if (!dir)
-		return;
-	fprintf(stderr, "+ Begin scanning %s...\n", processed_folder);
 	while(1) {
-		free(fullpath);
-		fullpath = NULL;
+		g_mutex_lock(&pq_mtx);
+		while (pq != TRUE) {
+			fprintf(stderr, "+ Awaiting work in %s...\n", processed_folder);
+			g_cond_wait(&pq_work, &pq_mtx);
+		}
+		pq = FALSE;
+		g_mutex_unlock(&pq_mtx);
 
-		entry = readdir(dir);
-		if (!entry || !entry->d_name)
-			break;
-		if (entry->d_name[0] == '.')
-			continue;
-		if (!strstr(entry->d_name, "process"))
-			continue;
+		fprintf(stderr, "+ Begin scanning %s...\n", processed_folder);
 
-		r = asprintf(&fullpath, "%s%s", processed_folder, entry->d_name);
-		if (r == -1) {
-			fullpath = NULL;
-			continue;
-		} else if (((unsigned int)r) != strlen(processed_folder) + strlen(entry->d_name)) {
+		dir = opendir(processed_folder);
+		if (!dir) {
+			fprintf(stderr, "+ Unable to open %s\n", processed_folder);
 			continue;
 		}
+		while(1) {
+			entry = readdir(dir);
+			if (!entry || !entry->d_name)
+				break;
+			if (entry->d_name[0] == '.')
+				continue;
 
-		fprintf(stderr, "+ Looking at %s\n", fullpath);
-		if (strstr(fullpath, "to-process"))
-			process_corefile(fullpath);
-		else
-			reprocess_corefile(fullpath);
+			/* files with trailing ".to-process" or "processed" represent new work */
+			if (!strstr(entry->d_name, "process"))
+				continue;
+
+			if (asprintf(&fullpath, "%s%s", processed_folder, entry->d_name) == -1) {
+				fullpath = NULL;
+				continue;
+			}
+
+			fprintf(stderr, "+ Looking at %s\n", fullpath);
+
+			oops = create_report(fullpath);
+
+			if (oops) {
+				fprintf(stderr, "+ Queued backtrace from %s\n", oops->detail_filename);
+				queue_backtrace(oops);
+			}
+
+			free(fullpath);
+			fullpath = NULL;
+		}
+		closedir(dir);
+		fprintf(stderr, "+ End scanning %s...\n", processed_folder);
 	}
-	closedir(dir);
-	fprintf(stderr, "+ End scanning %s...\n", processed_folder);
+
+	return NULL;
 }
 
+/* do everything, called from timer event */
 int scan_folders(void __unused *unused)
 {
 	scan_core_folder(NULL);
-	scan_processed_folder(NULL);
 
-	return 1;
+	g_mutex_lock(&pq_mtx);
+	g_cond_signal(&pq_work);
+	pq = TRUE;
+	g_mutex_unlock(&pq_mtx);
+
+	return TRUE;
 }

@@ -31,16 +31,15 @@
 /* borrowed from the kernel */
 #define __unused  __attribute__ ((__unused__))
 
-#define MAX_PROCESSING_OOPS 10
 #define MAX_URLS 2
 
 #define FREE_OOPS(oops)					\
 	do {						\
 		if (oops) {				\
-			free(oops->application);	\
-			free(oops->text);		\
-			free(oops->filename);		\
-			free(oops->detail_filename);	\
+			if (oops->application) free(oops->application);	        \
+			if (oops->text) free(oops->text);		        \
+			if (oops->filename) free(oops->filename);		\
+			if (oops->detail_filename) free(oops->detail_filename);	\
 			free(oops);			\
 		}					\
 	} while(0)
@@ -53,27 +52,20 @@ struct oops {
 	char *detail_filename;
 };
 
-/* Considering the static mutexes the total global order should be:
-       processing_mtx -> gdb_mtx ->processing_queue_mtx */
-struct core_status {
-	GHashTable *processing_oops;
-	GMutex processing_mtx;
-};
-
 /* inotification.c */
-extern void *inotify_loop(void * unused);
+extern void *inotify_loop(void __unused *unused);
 
 /* submit.c */
+extern GMutex bt_mtx;
+extern GHashTable *bt_hash;
 extern void queue_backtrace(struct oops *oops);
 extern char *replace_name(char *filename, char *replace, char *new);
-extern void *submit_loop(void * unused);
+extern void *submit_loop(void __unused *unused);
 
 /* coredump.c */
-extern int move_core(char *fullpath, char *ext);
-extern int scan_folders(void * unused);
-extern char *strip_directories(char *fullpath);
-extern char *get_core_filename(char *filename, char *ext);
-extern void remove_name_from_hash(char *fullpath, GHashTable *ht);
+extern int scan_folders(void __unused *unused);
+extern int scan_core_folder(void __unused *unused);
+extern void *scan_processed_folder(void __unused *unused);
 extern const char *core_folder;
 extern const char *processed_folder;
 
@@ -89,7 +81,7 @@ extern int pinged;
 extern struct core_status core_status;
 
 /* find_file.c */
-extern char *find_executable(char *fragment);
-extern char *find_coredump(char *fullpath);
+extern char *find_apppath(char *fragment);
+extern char *find_causingapp(char *fullpath);
 
 #endif

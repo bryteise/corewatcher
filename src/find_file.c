@@ -21,7 +21,7 @@
 
 #include "corewatcher.h"
 
-char *find_executable(char *fragment)
+char *find_apppath(char *fragment)
 {
 	char *path, *c1, *c2;
 	char *filename = NULL;
@@ -61,7 +61,7 @@ char *find_executable(char *fragment)
 	return NULL;
 }
 
-char *find_coredump(char *fullpath)
+char *find_causingapp(char *fullpath)
 {
 	char *line = NULL, *line_len = NULL, *c = NULL, *c2 = NULL;
 	size_t size = 0;

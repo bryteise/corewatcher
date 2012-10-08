@@ -38,7 +38,7 @@
 #include "corewatcher.h"
 
 GMutex bt_mtx;
-GCond bt_work;
+static GCond bt_work;
 GHashTable *bt_hash;
 static struct oops *bt_list = NULL;
 
@@ -72,7 +72,6 @@ void queue_backtrace(struct oops *oops)
  * For testmode to display all oops that would
  * be submitted.
  *
- * Picks up and sets down the processing_mtx.
  * Picks up and sets down the bt_mtx.
  */
 static void print_queue(void)
@@ -91,10 +90,6 @@ static void print_queue(void)
 	}
 	g_hash_table_remove_all(bt_hash);
 	g_mutex_unlock(&bt_mtx);
-
-	g_mutex_lock(&core_status.processing_mtx);
-	g_hash_table_remove_all(core_status.processing_oops);
-	g_mutex_unlock(&core_status.processing_mtx);
 }
 
 static size_t writefunction(void *ptr, size_t size, size_t nmemb, void __attribute((unused)) *stream)
@@ -139,7 +134,6 @@ err:
 char *replace_name(char *filename, char *replace, char *new)
 {
 	char *newfile = NULL, *oldfile, *c = NULL;
-	int r = 0;
 
 	if (!filename || !replace || !new)
 		return NULL;
@@ -156,16 +150,10 @@ char *replace_name(char *filename, char *replace, char *new)
 
 	oldfile[strlen(oldfile) - strlen(c)] = '\0';
 
-	r = asprintf(&newfile, "%s%s",  oldfile, new);
-	if(r == -1) {
+	if (asprintf(&newfile, "%s%s",  oldfile, new) == -1) {
 		free(oldfile);
-		return NULL;
-	} else if (((unsigned int)r) != strlen(oldfile) + strlen(new)) {
-		free(oldfile);
-		free(newfile);
 		return NULL;
 	}
-
 	free(oldfile);
 
 	return newfile;
@@ -181,10 +169,6 @@ void report_good_send(int *sentcount, struct oops *oops)
 	newfilename = replace_name(oops->filename, ".processed", ".submitted");
 	rename(oops->filename, newfilename);
 	free(newfilename);
-
-	g_mutex_lock(&core_status.processing_mtx);
-	remove_name_from_hash(oops->filename, core_status.processing_oops);
-	g_mutex_unlock(&core_status.processing_mtx);
 
 	g_mutex_lock(&bt_mtx);
 	g_hash_table_remove(bt_hash, oops->filename);
@@ -205,7 +189,6 @@ void report_fail_send(int *failcount, struct oops *oops, struct oops *requeue_li
  * Worker thread for submitting backtraces
  *
  * Picks up and sets down the bt_mtx.
- * Picks up and sets down the processing_mtx.
  */
 void *submit_loop(void __unused *unused)
 {
@@ -215,12 +198,10 @@ void *submit_loop(void __unused *unused)
 	struct oops *requeue_list = NULL;
 	int result = 0;
 	CURL *handle = NULL;
-	struct curl_httppost *post = NULL;
-	struct curl_httppost *last = NULL;
+	struct curl_httppost *post;
+	struct curl_httppost *last;
 
 	fprintf(stderr, "+ Begin submit_loop()\n");
-
-	bt_hash = g_hash_table_new(g_str_hash, g_str_equal);
 
 	if (testmode) {
 		fprintf(stderr, "+ The queue contains:\n");
@@ -275,6 +256,8 @@ void *submit_loop(void __unused *unused)
 				fprintf(stderr, "+ attempting to POST %s\n", oops->detail_filename);
 
 				/* set up the POST data */
+				post = NULL;
+				last = NULL;
 				curl_formadd(&post, &last,
 					CURLFORM_COPYNAME, "crash",
 					CURLFORM_COPYCONTENTS, oops->text, CURLFORM_END);

@@ -34,22 +34,18 @@ S1: core_folder has no core_*
 S2: core_folder has core_* present
  |
  |	scan_core_folder()
- |	get_appfile()
  |	move_core(fullpath, "to-process")
  |
 S3: processed_folder has some core_*.to-process
- |
- |	scan_processed_folders()
- |	process_corefile()
- |	process_new()
- |		(calls gdb, creates report summary *.txt)
- |	queue_backtrace()
- |
-S4: processed_folder has some core_*.processed
+      or
+    processed_folder has some core_*.processed, but no associated *.txt
  |
  |	scan_processed_folder()
- |	reprocess_corefile()
- |	process_old()
+ |	create_report()
+ |		(calls gdb, creates report summary *.txt)
+ |
+S4: processed_folder has some core_*.processed, and associated *.txt
+ |
  |	queue_backtrace()
  .
  .
@@ -58,24 +54,27 @@ unqueueing
  |
  |	submit_loop(): a sleepy thread whose work condition is set in
  |	               queue_backtrace() and in the period timer
- |	               "cleanup" thread
+ |	               "cleanup" thread, submits *.txt and where
+ |	               successful moves associated core_*.processed
+ |	               to core_*.submitted
  |
 S5: processed_folder has only core_*.submitted and *.txt
 
 
 NOTES:
-o at daemon start any of the states in the filesystem could exist, so we
-  need to do all of get_appfile()/move_core(), process_new(), process_old()
-  and submit_loop()
-o during submission, crash reports are removed from the in-memory pending
-  work list for submission, then if curl POST fails, the associated cores
-  stay in the filesystem as "processed" files, and re-added to the in-memory
-  work list
+o At daemon start any of the states in the filesystem could exist, so we
+  need to do all of scan_core_folder(), scan_processed_folder() and
+  submit_loop().
+o During submission, crash reports are removed from the in-memory pending
+  submission work list.  If the curl POST then fails, the associated cores
+  stay in the filesystem as "processed" files, and are placed back on the
+  in-memory submission work list.
   -  if client network is down and comes back up, an event notifier
-     could trigger resubmit via reprocess_corefile() and submit_loop()
+     could trigger resubmit by toggling the submit_loop() condition
+     variable
   -  if server or intermediate connectivity was the problem, only a
-     periodic timer can attempt to resubmit via reprocess_corefile() and
-     setting the work condition for submit_loop()
+     periodic timer can trigger resubmission by setting the work condition
+     for submit_loop()
   -  failed submissions should hang out at the end of the work queue in
      case there is something truly wrong with them so new reports have a
      better chance of getting through
@@ -86,22 +85,17 @@ o during submission, crash reports are removed from the in-memory pending
 
 Internals: locking & global state
 
-  o  core_status is a global struct
-  o  ordering:
-          "processing_mtx -> gdb_mtx ->processing_queue_mtx"
-  o  core_status.processing_mtx:
-     - protects: core_status.processing_oops GHashTable
-  o  processing_queue_mtx: (coredump.c)
-     - protects: processing_queue array of corefile fullpath strings
-  o  gdb_mtx: (coredump.c)
-     - intent was to insure gdb doesn't run concurrently, under an assumption
-       that simultaneously processing multiple cores is too resource intensive
-       and system-unfriendly
   o  bt_mtx: (submit.c)
      - protects:
-        o  bt_list struct oops linked list
         o  bt_work GCond condition variable
+        o  bt_list struct oops linked list
         o  bt_hash GHashTable of core file names
-        o  A struct oops may exist off of bt_list and still referenced by name
-           in be in bt_hash.  Such a struct oops must exist if the core name
-           is in the bt_hash.
+        o  A struct oops may exist off of bt_list and still be referenced by
+           name in be in bt_hash.  Such a struct oops must exist if the core
+           name is in the bt_hash.
+  o  pq_mtx: (coredump.c)
+     - protects:
+        o  pq "processing queue" boolean: the actual queue is represented
+           by the presence of files in filesystem, but this allow threads
+           to signal there are new ones to process
+        o  pq_work GCond condition variable

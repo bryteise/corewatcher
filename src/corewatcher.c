@@ -51,16 +51,16 @@
 
 #include "corewatcher.h"
 
+const char *core_folder = "/var/lib/corewatcher/";
+const char *processed_folder = "/var/lib/corewatcher/processed/";
+
 static struct option opts[] = {
 	{ "nodaemon", 0, NULL, 'n' },
-	{ "debug",    0, NULL, 'd' },
 	{ "always",   0, NULL, 'a' },
 	{ "test",     0, NULL, 't' },
 	{ "help",     0, NULL, 'h' },
 	{ 0, 0, NULL, 0 }
 };
-
-struct core_status core_status;
 
 int testmode = 0;
 
@@ -68,7 +68,6 @@ static void usage(const char *name)
 {
 	fprintf(stderr, "Usage: %s [OPTIONS...]\n", name);
 	fprintf(stderr, "  -n, --nodaemon  Do not daemonize, run in foreground\n");
-	fprintf(stderr, "  -d, --debug     Enable debug mode\n");
 	fprintf(stderr, "  -t, --test      Do not send anything\n");
 	fprintf(stderr, "  -h, --help      Display this help message\n");
 }
@@ -77,15 +76,13 @@ int main(int argc, char**argv)
 {
 	GMainLoop *loop;
 	int godaemon = 1;
-	int debug = 0;
 	int j = 0;
 	DIR *dir = NULL;
 	GThread *inotify_thread = NULL;
 	GThread *submit_thread = NULL;
+	GThread *processing_thread = NULL;
 
 	g_thread_init (NULL);
-
-	core_status.processing_oops = g_hash_table_new_full(g_str_hash, g_str_equal, free, NULL);
 
 /*
  * Signal the kernel that we're not timing critical
@@ -136,10 +133,6 @@ int main(int argc, char**argv)
 			fprintf(stderr, "+ Not running as daemon\n");
 			godaemon = 0;
 			break;
-		case 'd':
-			fprintf(stderr, "+ Starting corewatcher in debug mode\n");
-			debug = 1;
-			break;
 		case 't':
 			testmode = 1;
 			fprintf(stderr, "+ Test mode enabled: not sending anything\n");
@@ -170,9 +163,18 @@ int main(int argc, char**argv)
 	loop = g_main_loop_new(NULL, FALSE);
 	loop = g_main_loop_ref(loop);
 
+	g_mutex_lock(&bt_mtx);
+	bt_hash = g_hash_table_new(g_str_hash, g_str_equal);
+	g_mutex_unlock(&bt_mtx);
 	submit_thread = g_thread_new("corewatcher submit", submit_loop, NULL);
 	if (submit_thread == NULL) {
 		fprintf(stderr, "+ Unable to start submit thread...exiting\n");
+		return EXIT_FAILURE;
+	}
+
+	processing_thread = g_thread_new("corewatcher processing", scan_processed_folder, NULL);
+	if (processing_thread == NULL) {
+		fprintf(stderr, "+ Unable to start processing thread...exiting\n");
 		return EXIT_FAILURE;
 	}
 
@@ -202,8 +204,10 @@ int main(int argc, char**argv)
 	/*
 	 * long poll for crashes: at inotify time we might not have been
 	 * able to fully process things, here we'd push those reports out
+	 * If the system seems to generally work well, this time could be
+	 * extended quite a bit longer probably.
 	 */
-	g_timeout_add_seconds(900, scan_folders, NULL);
+	g_timeout_add_seconds(60, scan_folders, NULL);
 
 	g_main_loop_run(loop);
 out:
@@ -211,10 +215,6 @@ out:
 
 	for (j = 0; j < url_count; j++)
 		free(submit_url[j]);
-
-	g_mutex_lock(&core_status.processing_mtx);
-	g_hash_table_destroy(core_status.processing_oops);
-	g_mutex_unlock(&core_status.processing_mtx);
 
 	return EXIT_SUCCESS;
 }
