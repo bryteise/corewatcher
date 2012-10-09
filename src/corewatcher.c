@@ -207,7 +207,7 @@ int main(int argc, char**argv)
 	 * If the system seems to generally work well, this time could be
 	 * extended quite a bit longer probably.
 	 */
-	g_timeout_add_seconds(60, scan_folders, NULL);
+	g_timeout_add_seconds(900, scan_folders, NULL);
 
 	g_main_loop_run(loop);
 out:

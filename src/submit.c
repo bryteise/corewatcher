@@ -233,11 +233,11 @@ void *submit_loop(void __unused *unused)
 		curl_easy_setopt(handle, CURLOPT_NOBODY, 1);
 		curl_easy_setopt(handle, CURLOPT_TIMEOUT, 5);
 
-		sentcount = 0;
-		failcount = 0;
-
 		/* try to find a good url (curl automagically will use config'd proxies */
 		for (i = 0; i < url_count; i++) {
+			sentcount = 0;
+			failcount = 0;
+
 			curl_easy_setopt(handle, CURLOPT_URL, submit_url[i]);
 
 			/* check the connection before POSTing form */
@@ -246,8 +246,9 @@ void *submit_loop(void __unused *unused)
 				fprintf(stderr, "+ unable to contact %s\n", submit_url[i]);
 				continue;
 			}
+			fprintf(stderr, "+ Draining work_list to %s\n", submit_url[i]);
 
-			/* have a good url/proxy now...send reports there */
+			/* have a good url/proxy now...attempt sending all reports there */
 			while (work_list) {
 				oops = work_list;
 				work_list = oops->next;
@@ -279,9 +280,11 @@ void *submit_loop(void __unused *unused)
 			if (failcount)
 				syslog(LOG_WARNING, "Failed to send %d coredump signatures to %s", failcount, submit_url[i]);
 			closelog();
+
+			break;
 		}
 		if (work_list) {
-			work_list->next = requeue_list;
+			fprintf(stderr, "+ No urls worked, requeueing all work\n");
 			requeue_list = work_list;
 		}
 
