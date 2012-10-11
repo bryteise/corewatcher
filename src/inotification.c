@@ -125,8 +125,5 @@ void *inotify_loop(void __unused *unused)
 	g_main_loop_run(loop);
 	fprintf(stderr, "+ inotify loop finished\n");
 
-	g_main_loop_unref(loop);
-
 	return NULL;
 }
-

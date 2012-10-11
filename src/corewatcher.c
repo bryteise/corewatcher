@@ -76,7 +76,6 @@ int main(int argc, char**argv)
 {
 	GMainLoop *loop;
 	int godaemon = 1;
-	int j = 0;
 	DIR *dir = NULL;
 	GThread *inotify_thread = NULL;
 	GThread *submit_thread = NULL;
@@ -159,24 +158,31 @@ int main(int argc, char**argv)
 	sched_yield();
 
 	loop = g_main_loop_new(NULL, FALSE);
-	loop = g_main_loop_ref(loop);
-
 	bt_mtx = g_new(GMutex, 1);
-	g_mutex_init(bt_mtx);
 	bt_work = g_new(GCond, 1);
-	g_cond_init(bt_work);
-	g_mutex_lock(bt_mtx);
 	bt_hash = g_hash_table_new(g_str_hash, g_str_equal);
-	g_mutex_unlock(bt_mtx);
+	pq_mtx = g_new(GMutex, 1);
+	pq_work = g_new(GCond, 1);
+
+	if (loop == NULL ||
+	    bt_mtx == NULL ||
+	    bt_work == NULL ||
+	    bt_hash == NULL ||
+	    pq_mtx == NULL ||
+	    pq_work == NULL) {
+		fprintf(stderr, "+ Unable to allocate required GLib pieces...exiting\n");
+		return EXIT_FAILURE;
+	}
+
+	g_mutex_init(bt_mtx);
+	g_cond_init(bt_work);
 	submit_thread = g_thread_new("corewatcher submit", submit_loop, NULL);
 	if (submit_thread == NULL) {
 		fprintf(stderr, "+ Unable to start submit thread...exiting\n");
 		return EXIT_FAILURE;
 	}
 
-	pq_mtx = g_new(GMutex, 1);
 	g_mutex_init(pq_mtx);
-	pq_work = g_new(GCond, 1);
 	g_cond_init(pq_work);
 	processing_thread = g_thread_new("corewatcher processing", scan_processed_folder, NULL);
 	if (processing_thread == NULL) {
@@ -188,7 +194,7 @@ int main(int argc, char**argv)
 
 	if (testmode) {
 		fprintf(stderr, "+ Exiting from testmode\n");
-		goto out;
+		return EXIT_SUCCESS;
 	}
 
 	inotify_thread = g_thread_new("corewatcher inotify", inotify_loop, NULL);
@@ -216,17 +222,6 @@ int main(int argc, char**argv)
 	g_timeout_add_seconds(900, scan_folders, NULL);
 
 	g_main_loop_run(loop);
-out:
-	g_main_loop_unref(loop);
-	g_cond_clear(bt_work);
-	g_cond_clear(pq_work);
-	g_mutex_clear(bt_mtx);
-	g_mutex_clear(pq_mtx);
-	g_free(bt_mtx);
-	g_free(pq_mtx);
-
-	for (j = 0; j < url_count; j++)
-		free(submit_url[j]);
 
 	return EXIT_SUCCESS;
 }

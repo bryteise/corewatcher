@@ -296,7 +296,5 @@ void *submit_loop(void __unused *unused)
 	/* curl docs say this is not thread safe...but we never get here*/
 	curl_global_cleanup();
 
-	g_hash_table_destroy(bt_hash);
-
 	return NULL;
 }
