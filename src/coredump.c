@@ -49,9 +49,9 @@
  * race where the condition is set before the thread is awaiting it and
  * thus is not woken.
  */
-static GMutex pq_mtx;
+GMutex *pq_mtx;
 static gboolean pq = FALSE;
-static GCond pq_work;
+GCond *pq_work;
 
 static char *get_release(void)
 {
@@ -578,9 +578,6 @@ int scan_core_folder(void __unused *unused)
 	}
 	fprintf(stderr, "+ Begin scanning %s...\n", core_folder);
 	while(1) {
-		free(fullpath);
-		fullpath = NULL;
-
 		entry = readdir(dir);
 		if (!entry || !entry->d_name)
 			break;
@@ -603,15 +600,18 @@ int scan_core_folder(void __unused *unused)
 		ret = move_core(fullpath, "to-process");
 		if (ret == 0)
 			work++;
+
+		free(fullpath);
+		fullpath = NULL;
 	}
 	closedir(dir);
 
 	if (work) {
 		fprintf(stderr, "+ Found %d files, setting pq_work condition\n", work);
-		g_mutex_lock(&pq_mtx);
-		g_cond_signal(&pq_work);
+		g_mutex_lock(pq_mtx);
+		g_cond_signal(pq_work);
 		pq = TRUE;
-		g_mutex_unlock(&pq_mtx);
+		g_mutex_unlock(pq_mtx);
 	}
 
 	fprintf(stderr, "+ End scanning %s...\n", core_folder);
@@ -630,13 +630,13 @@ void *scan_processed_folder(void __unused *unused)
 	struct oops *oops = NULL;
 
 	while(1) {
-		g_mutex_lock(&pq_mtx);
+		g_mutex_lock(pq_mtx);
 		while (pq != TRUE) {
 			fprintf(stderr, "+ Awaiting work in %s...\n", processed_folder);
-			g_cond_wait(&pq_work, &pq_mtx);
+			g_cond_wait(pq_work, pq_mtx);
 		}
 		pq = FALSE;
-		g_mutex_unlock(&pq_mtx);
+		g_mutex_unlock(pq_mtx);
 
 		fprintf(stderr, "+ Begin scanning %s...\n", processed_folder);
 
@@ -685,10 +685,10 @@ int scan_folders(void __unused *unused)
 {
 	scan_core_folder(NULL);
 
-	g_mutex_lock(&pq_mtx);
-	g_cond_signal(&pq_work);
+	g_mutex_lock(pq_mtx);
+	g_cond_signal(pq_work);
 	pq = TRUE;
-	g_mutex_unlock(&pq_mtx);
+	g_mutex_unlock(pq_mtx);
 
 	return TRUE;
 }

@@ -56,13 +56,16 @@ struct oops {
 extern void *inotify_loop(void __unused *unused);
 
 /* submit.c */
-extern GMutex bt_mtx;
+extern GMutex *bt_mtx;
+extern GCond *bt_work;
 extern GHashTable *bt_hash;
 extern void queue_backtrace(struct oops *oops);
 extern char *replace_name(char *filename, char *replace, char *new);
 extern void *submit_loop(void __unused *unused);
 
 /* coredump.c */
+extern GMutex *pq_mtx;
+extern GCond *pq_work;
 extern int scan_folders(void __unused *unused);
 extern int scan_core_folder(void __unused *unused);
 extern void *scan_processed_folder(void __unused *unused);

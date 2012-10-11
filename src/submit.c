@@ -37,8 +37,8 @@
 
 #include "corewatcher.h"
 
-GMutex bt_mtx;
-static GCond bt_work;
+GMutex *bt_mtx;
+GCond *bt_work;
 GHashTable *bt_hash;
 static struct oops *bt_list = NULL;
 
@@ -51,12 +51,12 @@ void queue_backtrace(struct oops *oops)
 	if (!oops || !oops->filename)
 		return;
 
-	g_mutex_lock(&bt_mtx);
+	g_mutex_lock(bt_mtx);
 
 	/* if this is already on bt_list / bt_hash, free and done */
 	if (g_hash_table_lookup(bt_hash, oops->filename)) {
 		FREE_OOPS(oops);
-		g_mutex_unlock(&bt_mtx);
+		g_mutex_unlock(bt_mtx);
 		return;
 	}
 
@@ -64,8 +64,8 @@ void queue_backtrace(struct oops *oops)
 	oops->next = bt_list;
 	bt_list = oops;
 	g_hash_table_insert(bt_hash, oops->filename, oops->filename);
-	g_cond_signal(&bt_work);
-	g_mutex_unlock(&bt_mtx);
+	g_cond_signal(bt_work);
+	g_mutex_unlock(bt_mtx);
 }
 
 /*
@@ -79,7 +79,7 @@ static void print_queue(void)
 	struct oops *oops = NULL, *next = NULL;
 	int count = 0;
 
-	g_mutex_lock(&bt_mtx);
+	g_mutex_lock(bt_mtx);
 	oops = bt_list;
 	while (oops) {
 		fprintf(stderr, "+ Submit text is:\n---[start of oops]---\n%s\n---[end of oops]---\n", oops->text);
@@ -89,7 +89,7 @@ static void print_queue(void)
 		count++;
 	}
 	g_hash_table_remove_all(bt_hash);
-	g_mutex_unlock(&bt_mtx);
+	g_mutex_unlock(bt_mtx);
 }
 
 static size_t writefunction(void *ptr, size_t size, size_t nmemb, void __attribute((unused)) *stream)
@@ -170,9 +170,9 @@ void report_good_send(int *sentcount, struct oops *oops)
 	rename(oops->filename, newfilename);
 	free(newfilename);
 
-	g_mutex_lock(&bt_mtx);
+	g_mutex_lock(bt_mtx);
 	g_hash_table_remove(bt_hash, oops->filename);
-	g_mutex_unlock(&bt_mtx);
+	g_mutex_unlock(bt_mtx);
 	FREE_OOPS(oops);
 }
 
@@ -211,7 +211,7 @@ void *submit_loop(void __unused *unused)
 	}
 
 	while (1) {
-		g_mutex_lock(&bt_mtx);
+		g_mutex_lock(bt_mtx);
 		while (!bt_list) {
 			if (requeue_list) {
 				bt_list = requeue_list;
@@ -220,13 +220,13 @@ void *submit_loop(void __unused *unused)
 			} else {
 				fprintf(stderr, "+ submit_loop() queue empty, awaiting new work\n");
 			}
-			g_cond_wait(&bt_work, &bt_mtx);
+			g_cond_wait(bt_work, bt_mtx);
 		}
 		fprintf(stderr, "+ submit_loop() checking for work\n");
 		/* pull out current work and release the mutex */
 		work_list = bt_list;
 		bt_list = NULL;
-		g_mutex_unlock(&bt_mtx);
+		g_mutex_unlock(bt_mtx);
 
 		/* net init */
 		handle = curl_easy_init();
