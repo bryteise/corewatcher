@@ -35,6 +35,8 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/time.h>
+#include <sys/statvfs.h>
+#include <syslog.h>
 #include <dirent.h>
 #include <glib.h>
 #include <errno.h>
@@ -52,6 +54,8 @@
 GMutex *pq_mtx;
 static gboolean pq = FALSE;
 GCond *pq_work;
+
+static int diskfree = 100;
 
 static char *get_release(void)
 {
@@ -683,6 +687,46 @@ void *scan_processed_folder(void __unused *unused)
 /* do everything, called from timer event */
 int scan_folders(void __unused *unused)
 {
+	struct statvfs stat;
+	int newdiskfree;
+	int ret;
+
+	if (statvfs(core_folder, &stat) == 0) {
+		newdiskfree = (int)(stat.f_bavail / stat.f_blocks);
+
+		openlog("corewatcher", 0, LOG_KERN);
+		if ((newdiskfree < 10) && (diskfree >= 10)) {
+			ret = system("echo \"\" > /proc/sys/kernel/core_pattern");
+			if (ret != -1) {
+				fprintf(stderr, "+ disabled core pattern, disk low %d%%",
+					newdiskfree);
+				syslog(LOG_WARNING,
+					"Disabled kernel core_pattern, %s only has %d%% available",
+					core_folder, newdiskfree);
+			}
+		}
+		if ((newdiskfree > 12) && (diskfree <= 12)) {
+			char * proc_core_string = NULL;
+			ret = asprintf(&proc_core_string,
+					"echo \"%score_%%e_%%t\" > /proc/sys/kernel/core_pattern",
+					core_folder);
+			if (ret != -1) {
+				ret = system(proc_core_string);
+				free(proc_core_string);
+				if (ret != -1) {
+					fprintf(stderr, "+ reenabled core pattern, disk %d%%",
+						newdiskfree);
+					syslog(LOG_WARNING,
+						"Reenabled kernel core_pattern, %s now has %d%% available",
+						core_folder, newdiskfree);
+				}
+			}
+		}
+		closelog();
+
+		diskfree = newdiskfree;
+	}
+
 	scan_core_folder(NULL);
 
 	g_mutex_lock(pq_mtx);
