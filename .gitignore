@@ -24,3 +24,4 @@ src/Makefile
 src/Makefile.in
 stamp-h1
 src/corewatcher-config
+src/corewatcher.service
