@@ -13,6 +13,7 @@ AC_PROG_INSTALL
 # PkgConfig tests
 PKG_CHECK_MODULES([glib], [glib-2.0 gthread-2.0])
 PKG_CHECK_MODULES([curl], [libcurl])
+PKG_CHECK_MODULES([systemd_journal], [libsystemd-journal])
 
 # Checks for header files.
 AC_CHECK_HEADERS([stdio.h assert.h sys/types.h sys/stat.h dirent.h signal.h errno.h sched.h fcntl.h stdlib.h string.h sys/time.h syslog.h unistd.h asm/unistd.h])

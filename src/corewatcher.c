@@ -40,7 +40,7 @@
 #include <errno.h>
 
 #include <glib.h>
-
+#include <systemd/sd-journal.h>
 
 /* see linux kernel doc Documentation/block/ioprio.txt */
 #define IOPRIO_WHO_PROCESS 1
@@ -196,6 +196,8 @@ int main(int argc, char**argv)
 		fprintf(stderr, "+ Exiting from testmode\n");
 		return EXIT_SUCCESS;
 	}
+
+	sd_journal_print(LOG_INFO, "Nitra corewatcher %s", VERSION);
 
 	inotify_thread = g_thread_new("corewatcher inotify", inotify_loop, NULL);
 	if (inotify_thread == NULL)

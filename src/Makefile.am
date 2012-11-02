@@ -19,4 +19,4 @@ noinst_HEADERS = \
 	corewatcher.h
 
 AM_CPPFLAGS = $(AM_CFLAGS) $(glib_CFLAGS) ${curl_CFLAGS}
-corewatcher_LDADD = $(glib_LIBS) ${curl_LIBS}
+corewatcher_LDADD = $(glib_LIBS) ${curl_LIBS} ${systemd_journal_LIBS}

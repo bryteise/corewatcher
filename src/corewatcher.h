@@ -24,6 +24,7 @@
  *	Tim Pepper <timothy.c.pepper@linux.intel.com>
  */
 
+#include "config.h"
 
 #ifndef __INCLUDE_GUARD_KERNELOOPS_H_
 #define __INCLUDE_GUARD_KERNELOOPS_H_
