@@ -72,6 +72,7 @@ extern int scan_core_folder(void __unused *unused);
 extern void *scan_processed_folder(void __unused *unused);
 extern const char *core_folder;
 extern const char *processed_folder;
+extern void enable_corefiles(int diskfree);
 
 /* configfile.c */
 extern void read_config_file(char *filename);

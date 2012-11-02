@@ -684,44 +684,63 @@ void *scan_processed_folder(void __unused *unused)
 	return NULL;
 }
 
+static void disable_corefiles(int diskfree)
+{
+	int ret;
+	ret = system("echo \"\" > /proc/sys/kernel/core_pattern");
+	if (ret != -1) {
+		fprintf(stderr, "+ disabled core pattern, disk low %d%%\n", diskfree);
+		syslog(LOG_WARNING,
+			"Disabled kernel core_pattern, %s only has %d%% available",
+			core_folder, diskfree);
+	}
+}
+
+void enable_corefiles(int diskfree)
+{
+	int ret;
+	char * proc_core_string = NULL;
+	ret = asprintf(&proc_core_string,
+			"echo \"%score_%%e_%%t\" > /proc/sys/kernel/core_pattern",
+			core_folder);
+	if (ret == -1)
+		goto err;
+
+	ret = system(proc_core_string);
+	free(proc_core_string);
+	if (ret == -1)
+		goto err;
+
+	if (diskfree == -1) {
+               fprintf(stderr, "+ enabled core pattern\n");
+               syslog(LOG_INFO, "Enabled corewatcher kernel core_pattern\n");
+	} else {
+               fprintf(stderr, "+ reenabled core pattern, disk %d%%", diskfree);
+               syslog(LOG_WARNING,
+                       "Reenabled corewatcher kernel core_pattern, %s now has %d%% available",
+                       core_folder, diskfree);
+	}
+	return;
+err:
+	fprintf(stderr, "+ unable to enable core pattern\n");
+	syslog(LOG_WARNING, "Unable to enable kernel core_pattern\n");
+	return;
+}
+
 /* do everything, called from timer event */
 int scan_folders(void __unused *unused)
 {
 	struct statvfs stat;
 	int newdiskfree;
-	int ret;
 
 	if (statvfs(core_folder, &stat) == 0) {
-		newdiskfree = (int)(stat.f_bavail / stat.f_blocks);
+		newdiskfree = (int)(100 * stat.f_bavail / stat.f_blocks);
 
 		openlog("corewatcher", 0, LOG_KERN);
-		if ((newdiskfree < 10) && (diskfree >= 10)) {
-			ret = system("echo \"\" > /proc/sys/kernel/core_pattern");
-			if (ret != -1) {
-				fprintf(stderr, "+ disabled core pattern, disk low %d%%",
-					newdiskfree);
-				syslog(LOG_WARNING,
-					"Disabled kernel core_pattern, %s only has %d%% available",
-					core_folder, newdiskfree);
-			}
-		}
-		if ((newdiskfree > 12) && (diskfree <= 12)) {
-			char * proc_core_string = NULL;
-			ret = asprintf(&proc_core_string,
-					"echo \"%score_%%e_%%t\" > /proc/sys/kernel/core_pattern",
-					core_folder);
-			if (ret != -1) {
-				ret = system(proc_core_string);
-				free(proc_core_string);
-				if (ret != -1) {
-					fprintf(stderr, "+ reenabled core pattern, disk %d%%",
-						newdiskfree);
-					syslog(LOG_WARNING,
-						"Reenabled kernel core_pattern, %s now has %d%% available",
-						core_folder, newdiskfree);
-				}
-			}
-		}
+		if ((newdiskfree < 10) && (diskfree >= 10))
+			disable_corefiles(newdiskfree);
+		if ((newdiskfree > 12) && (diskfree <= 12))
+			enable_corefiles(newdiskfree);
 		closelog();
 
 		diskfree = newdiskfree;

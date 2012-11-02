@@ -203,6 +203,8 @@ int main(int argc, char**argv)
 	if (inotify_thread == NULL)
 		fprintf(stderr, "+ Unable to start inotify thread\n");
 
+	enable_corefiles(-1);
+
 	/*
 	 * TODO: add a thread / event source tied to a connmand plugin
 	 *  o  network up: trigger scan_folders(), enables event sources
