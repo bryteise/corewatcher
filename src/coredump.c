@@ -326,8 +326,8 @@ static struct oops *extract_core(char *fullpath, char *appfile, char *reportname
 		       "maps: |\n"
 		       "%s",
 		       h1,
-		       c1 ? c1 : "        Unknown",
-		       m1 ? m1 : "        Unknown");
+		       c1 ? c1 : "        Unknown\n",
+		       m1 ? m1 : "        Unknown\n");
 	free(h1);
 	if (c1)
 		free(c1);
