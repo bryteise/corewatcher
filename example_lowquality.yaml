@@ -2,7 +2,6 @@ cmdline: /usr/bin/mate-calc
 release: 1160
 backtrace: |
         #0  0x00007fd494c2db41 in g_logv () from /usr/lib64/libglib-2.0.so.0
-        #0  0x00007fd494c2db41 in g_logv () from /usr/lib64/libglib-2.0.so.0
         #1  0x00007fd494c2dcfd in g_log () from /usr/lib64/libglib-2.0.so.0
         #2  0x00007fd4959a10ee in g_settings_set_property () from /usr/lib64/libgio-2.0.so.0
         #3  0x00007fd4956ae098 in g_object_constructor () from /usr/lib64/libgobject-2.0.so.0

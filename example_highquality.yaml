@@ -2,7 +2,6 @@ cmdline: /usr/bin/mate-calc
 release: 1260
 backtrace: |
         #0  g_logv (log_domain=0x7fb5dd2bbfe1 "GLib-GIO", log_level=G_LOG_LEVEL_ERROR, format=<optimized out>, args=args@entry=0x7fffe9c31d38) at gmessages.h:101 from /usr/lib64/libglib-2.0.so.0
-        #0  g_logv (log_domain=0x7fb5dd2bbfe1 "GLib-GIO", log_level=G_LOG_LEVEL_ERROR, format=<optimized out>, args=args@entry=0x7fffe9c31d38) at gmessages.h:101 from /usr/lib64/libglib-2.0.so.0
         #1  0x00007fb5dc4f9cfd in g_log (log_domain=log_domain@entry=0x7fb5dd2bbfe1 "GLib-GIO", log_level=log_level@entry=G_LOG_LEVEL_ERROR, format=format@entry=0x7fb5dd2d7d88 "No GSettings schemas are installed on the system") at gmessages.c:1003 from /usr/lib64/libglib-2.0.so.0
         #2  0x00007fb5dd27510a in g_settings_set_property (object=<optimized out>, prop_id=<optimized out>, value=0x7fffe9c31e80, pspec=<optimized out>) at gsettings.c:487 from /usr/lib64/libgio-2.0.so.0
         #3  0x00007fb5dcf82098 in object_set_property (nqueue=0x24bae60, value=0x24c0408, pspec=0x24bfca0, object=0x24bf540) at gobject.c:1357 from /usr/lib64/libgobject-2.0.so.0
