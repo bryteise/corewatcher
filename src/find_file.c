@@ -23,7 +23,8 @@
 
 char *find_apppath(char *fragment)
 {
-	char *path, *c1, *c2;
+	char *path = "/usr/bin"; /* system path */
+	char *c1, *c2;
 	char *filename = NULL;
 
 	fprintf(stderr, "+ Looking for %s\n", fragment);
@@ -38,8 +39,6 @@ char *find_apppath(char *fragment)
 		return filename;
 	}
 
-	path = strdup(getenv("PATH"));
-
 	c1 = path;
 	while (c1 && strlen(c1)>0) {
 		free(filename);
@@ -50,13 +49,11 @@ char *find_apppath(char *fragment)
 			return NULL;
 		if (!access(filename, X_OK)) {
 			printf("+ Found %s\n", filename);
-			free(path);
 			return filename;
 		}
 		c1 = c2;
 		if (c2) c1++;
 	}
-	free(path);
 	free(filename);
 	return NULL;
 }
