@@ -225,7 +225,7 @@ static struct oops *extract_core(char *fullpath, char *appfile, char *reportname
 
 	fprintf(stderr, "+ extract_core() called for %s\n", fullpath);
 
-	if (asprintf(&command, "LANG=C gdb --batch -f %s %s -x /etc/corewatcher/gdb.command 2> /dev/null", appfile, fullpath) == -1)
+	if (asprintf(&command, "LANG=C gdb --batch -f '%s' '%s' -x /etc/corewatcher/gdb.command 2> /dev/null", appfile, fullpath) == -1)
 		return NULL;
 
 	file = popen(command, "r");

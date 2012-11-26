@@ -65,7 +65,7 @@ char *find_causingapp(char *fullpath)
 	FILE *file = NULL;
 	char *app = NULL, *command = NULL;
 
-	if (asprintf(&command, "eu-readelf -n %s", fullpath) == -1)
+	if (asprintf(&command, "eu-readelf -n '%s'", fullpath) == -1)
 		return NULL;
 
 	file = popen(command, "r");
