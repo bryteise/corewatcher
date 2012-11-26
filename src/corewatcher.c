@@ -176,7 +176,7 @@ int main(int argc, char**argv)
 
 	g_mutex_init(bt_mtx);
 	g_cond_init(bt_work);
-	submit_thread = g_thread_new("corewatcher submit", submit_loop, NULL);
+	submit_thread = g_thread_new("corewatchersubm", submit_loop, NULL);
 	if (submit_thread == NULL) {
 		fprintf(stderr, "+ Unable to start submit thread...exiting\n");
 		return EXIT_FAILURE;
@@ -184,7 +184,7 @@ int main(int argc, char**argv)
 
 	g_mutex_init(pq_mtx);
 	g_cond_init(pq_work);
-	processing_thread = g_thread_new("corewatcher processing", scan_processed_folder, NULL);
+	processing_thread = g_thread_new("corewatcherproc", scan_processed_folder, NULL);
 	if (processing_thread == NULL) {
 		fprintf(stderr, "+ Unable to start processing thread...exiting\n");
 		return EXIT_FAILURE;
@@ -199,7 +199,7 @@ int main(int argc, char**argv)
 
 	sd_journal_print(LOG_INFO, "Nitra corewatcher %s", VERSION);
 
-	inotify_thread = g_thread_new("corewatcher inotify", inotify_loop, NULL);
+	inotify_thread = g_thread_new("corewatcherinot", inotify_loop, NULL);
 	if (inotify_thread == NULL)
 		fprintf(stderr, "+ Unable to start inotify thread\n");
 
