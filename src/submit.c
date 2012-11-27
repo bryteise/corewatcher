@@ -274,12 +274,10 @@ void *submit_loop(void __unused *unused)
 				}
 			}
 
-			openlog("corewatcher", 0, LOG_KERN);
 			if (sentcount)
-				syslog(LOG_WARNING, "Successful sent %d coredump signatures to %s", sentcount, submit_url[i]);
+				syslog(LOG_INFO, "corewatcher: Successfully sent %d coredump signatures to %s", sentcount, submit_url[i]);
 			if (failcount)
-				syslog(LOG_WARNING, "Failed to send %d coredump signatures to %s", failcount, submit_url[i]);
-			closelog();
+				syslog(LOG_INFO, "corewatcher: Failed to send %d coredump signatures to %s", failcount, submit_url[i]);
 
 			break;
 		}

@@ -708,7 +708,7 @@ static void disable_corefiles(int diskfree)
 	if (ret != -1) {
 		fprintf(stderr, "+ disabled core pattern, disk low %d%%\n", diskfree);
 		syslog(LOG_WARNING,
-			"Disabled kernel core_pattern, %s only has %d%% available",
+			"corewatcher: disabled kernel core_pattern, %s only has %d%% available",
 			core_folder, diskfree);
 	}
 }
@@ -729,18 +729,18 @@ void enable_corefiles(int diskfree)
 		goto err;
 
 	if (diskfree == -1) {
-               fprintf(stderr, "+ enabled core pattern\n");
-               syslog(LOG_INFO, "Enabled corewatcher kernel core_pattern\n");
+		fprintf(stderr, "+ enabled core pattern\n");
+		syslog(LOG_INFO, "corewatcher: enabled kernel core_pattern\n");
 	} else {
-               fprintf(stderr, "+ reenabled core pattern, disk %d%%", diskfree);
-               syslog(LOG_WARNING,
-                       "Reenabled corewatcher kernel core_pattern, %s now has %d%% available",
-                       core_folder, diskfree);
+		fprintf(stderr, "+ reenabled core pattern, disk %d%%", diskfree);
+		syslog(LOG_WARNING,
+			"corewatcher: reenabled kernel core_pattern, %s now has %d%% available",
+			core_folder, diskfree);
 	}
 	return;
 err:
 	fprintf(stderr, "+ unable to enable core pattern\n");
-	syslog(LOG_WARNING, "Unable to enable kernel core_pattern\n");
+	syslog(LOG_WARNING, "corewatcher: unable to enable kernel core_pattern\n");
 	return;
 }
 
@@ -753,12 +753,10 @@ int scan_folders(void __unused *unused)
 	if (statvfs(core_folder, &stat) == 0) {
 		newdiskfree = (int)(100 * stat.f_bavail / stat.f_blocks);
 
-		openlog("corewatcher", 0, LOG_KERN);
 		if ((newdiskfree < 10) && (diskfree >= 10))
 			disable_corefiles(newdiskfree);
 		if ((newdiskfree > 12) && (diskfree <= 12))
 			enable_corefiles(newdiskfree);
-		closelog();
 
 		diskfree = newdiskfree;
 	}
