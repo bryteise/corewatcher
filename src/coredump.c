@@ -135,6 +135,7 @@ static int move_core(char *fullpath, char *extension)
 	size_t prefix_len;
 	DIR *dir = NULL;
 	struct dirent *entry = NULL;
+	int ret = 0;
 
 	if (!fullpath)
 		return -1;
@@ -168,11 +169,15 @@ static int move_core(char *fullpath, char *extension)
 		free(coreprefix);
 		coreprefix = s;
 	} else {
-		goto error;
+		ret = -1;
+		goto out;
 	}
 	dir = opendir(processed_folder);
-	if (!dir)
-		goto error;
+	if (!dir) {
+		ret = -1;
+		goto out;
+	}
+
 	while(1) {
 		entry = readdir(dir);
 		if (!entry || !entry->d_name)
@@ -181,26 +186,27 @@ static int move_core(char *fullpath, char *extension)
 			continue;
 		if (!strstr(entry->d_name, coreprefix))
 			continue;
-		fprintf(stderr, "+ ...ignoring/unlinking %s\n", fullpath);
-		unlink(fullpath);
-		closedir(dir);
-		goto error;
+		break;
 	}
 	closedir(dir);
-
-	if (asprintf(&newpath, "%s%s.%s", processed_folder, corefilename, extension) == -1)
-		goto error;
-
 	free(coreprefix);
+
+	if (asprintf(&newpath, "%s%s.%s", processed_folder, corefilename, extension) == -1) {
+		ret = -1;
+		goto out;
+	}
 	free(corefilename);
+
 	rename(fullpath, newpath);
 	free(newpath);
 	return 0;
 
-error:
+out:
 	free(coreprefix);
 	free(corefilename);
-	return -1;
+	fprintf(stderr, "+ ...move failed, ignoring/unlinking %s\n", fullpath);
+	unlink(fullpath);
+	return ret;
 }
 
 
@@ -420,7 +426,7 @@ static void write_core_detail_file(struct oops *oops)
 static struct oops *process_common(char *fullpath)
 {
 	struct oops *oops = NULL;
-	char *appname = NULL, *appfile = NULL, *corefn = NULL, *reportname = NULL;
+	char *app = NULL, *appname = NULL, *appfile = NULL, *corefn = NULL, *reportname = NULL;
 	struct stat stat_buf;
 
 	corefn = strip_directories(fullpath);
@@ -429,28 +435,39 @@ static struct oops *process_common(char *fullpath)
 		return NULL;
 	}
 
+	/* don't process rpm, gdb or corewatcher crashes */
 	appname = find_causingapp(fullpath);
 	if (!appname) {
+		fprintf(stderr, "+ No appname in %s\n", corefn);
+		move_core(fullpath, "skipped");
 		free(corefn);
-		free(reportname);
 		return NULL;
 	}
-	/*
-	 * don't process rpm, gdb or corewatcher crashes,
-	 * also skip apps which don't appear to be part of the OS
-	 */
-	appfile = find_apppath(appname);
-	if (!appfile ||
-	    !strncmp(appname, "rpm", 3) ||
-	    !strncmp(appname, "gdb", 3) ||
-	    !strncmp(appname, "corewatcher", 11)) {
+	app = strip_directories(appname);
+	if (!app ||
+	    !strncmp(app, "rpm", 3) ||
+	    !strncmp(app, "gdb", 3) ||
+	    !strncmp(app, "corewatcher", 11)) {
+		fprintf(stderr, "+ ...skipping %s's %s\n", app, corefn);
+		move_core(fullpath, "skipped");
 		free(corefn);
 		free(appname);
-		fprintf(stderr, "+ ...ignoring %s's %s\n", appname, fullpath);
+		free(app);
+		return NULL;
+	}
+
+	/* also skip apps which don't appear to be part of the OS */
+	appfile = find_apppath(appname);
+	if (!appfile) {
+		fprintf(stderr, "+ ...skipping %s's %s\n", appname, corefn);
 		move_core(fullpath, "skipped");
+		free(corefn);
+		free(appname);
+		free(app);
 		return NULL;
 	}
 	free(appname);
+	free(app);
 
 	reportname = make_report_filename(corefn);
 	if (!reportname) {

@@ -15,47 +15,77 @@
 #include <string.h>
 #include <glib.h>
 
-#ifndef PATH_MAX
-#define PATH_MAX 4096
-#endif
-
 #include "corewatcher.h"
 
+/* Attempt to find a file which would match the path/file fragment and
+ * possibly represent a system binary.  We'll get more checking later when
+ * we call gdb.  This is just a best effort candidate executable file to
+ * hand to gdb along with a core. */
 char *find_apppath(char *fragment)
 {
-	char *path = "/usr/bin"; /* system path */
+	char *path = "/usr/bin";         /* ':' sep'd system path */
 	char *c1, *c2;
 	char *filename = NULL;
+	char *candidate = NULL;
+	char *apppath = NULL;
+	int stripped = 0;
 
 	fprintf(stderr, "+ Looking for %s\n", fragment);
 
-	if (fragment == NULL || strlen(fragment) < 3)
+	/* explicit absolute path in the standard directory */
+	if (!strncmp(fragment, "/usr/bin", 8)) {
+		if (!access(fragment, X_OK)) {
+			fprintf(stderr, "+  found system executable %s\n", fragment);
+			return strdup(fragment);
+		}
+		fprintf(stderr, "+  can't access system executable %s\n", fragment);
 		return NULL;
-
-	/* Deal with absolute paths first */
-	if (!access(fragment, X_OK)) {
-		if (!(filename = strdup(fragment)))
-			return NULL;
-		return filename;
 	}
 
+	/* explicit absolute path not in the standard directory */
+	if (!strncmp(fragment, "/", 1)) {
+		fprintf(stderr, "+  bad absolute path %s\n", fragment);
+		return NULL;
+	}
+
+        /* relative path: problematic as we cannot at this point know the
+	 * $PATH from the environment when the crash'd program started */
+	if (strchr(fragment, '/')) {
+	        candidate = strip_directories(fragment);
+		fprintf(stderr, "+  stripped %s to %s\n", fragment, candidate);
+		if (candidate == NULL)
+			return NULL;
+		stripped = 1;
+	} else {
+		/* fragment is just an executable's name */
+		candidate = fragment;
+	}
+
+	/* search the path */
 	c1 = path;
 	while (c1 && strlen(c1)>0) {
 		free(filename);
 		filename = NULL;
 		c2 = strchr(c1, ':');
 		if (c2) *c2=0;
-		if(asprintf(&filename, "%s/%s", c1, fragment) == -1)
-			return NULL;
+		fprintf(stderr, "+  looking in %s\n", c1);
+		if(asprintf(&filename, "%s/%s", c1, candidate) == -1) {
+			apppath = NULL;
+			free(filename);
+			goto out;
+		}
 		if (!access(filename, X_OK)) {
-			printf("+ Found %s\n", filename);
-			return filename;
+			printf("+  found %s\n", filename);
+			apppath = filename;
+			goto out;
 		}
 		c1 = c2;
 		if (c2) c1++;
 	}
-	free(filename);
-	return NULL;
+out:
+	if (stripped)
+		free(candidate);
+	return apppath;
 }
 
 char *find_causingapp(char *fullpath)
