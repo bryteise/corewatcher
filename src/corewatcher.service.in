@@ -6,6 +6,9 @@ After=sysinit.target
 [Service]
 Type=forking
 ExecStart=@prefix@/bin/corewatcher
+Restart=always
+StartLimitInterval=300
+StartLimitBurst=2
 
 [Install]
 WantedBy=multi-user.target
