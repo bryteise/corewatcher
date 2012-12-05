@@ -1,7 +1,5 @@
 /*
- * Copyright 2007, Intel Corporation
- *
- * This file is part of corewatcher.org
+ * Copyright 2007,2012 Intel Corporation
  *
  * This program file is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the

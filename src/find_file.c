@@ -2,11 +2,17 @@
 /*
  * Core dump watcher & collector
  *
- * (C) 2009 Intel Corporation
+ * (C) 2009-2012 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; version 3 of the License.
+ *
+ * Authors:
+ *	Arjan van de Ven <arjan@linux.intel.com>
+ *	Auke Kok <auke-jan.h.kok@intel.com>
+ *	William Douglas <william.douglas@intel.com>
+ *	Tim Pepper <timothy.c.pepper@linux.intel.com>
  */
 
 #include <stdio.h>
