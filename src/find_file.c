@@ -38,8 +38,9 @@ char *find_apppath(char *fragment)
 
 	fprintf(stderr, "+ Looking for %s\n", fragment);
 
-	/* explicit absolute path in the standard directory */
-	if (!strncmp(fragment, "/usr/bin", 8)) {
+	/* explicit absolute path in standard system locations */
+	if (!strncmp(fragment, "/usr/bin", 8) ||
+	    !strncmp(fragment, "/opt/google/chrome", 18)) {
 		if (!access(fragment, X_OK)) {
 			fprintf(stderr, "+  found system executable %s\n", fragment);
 			return strdup(fragment);
