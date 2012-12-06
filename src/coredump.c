@@ -207,6 +207,28 @@ out:
 	return ret;
 }
 
+static void skip_core(char *fullpath, char *extension)
+{
+	char *procfn;
+	int ret;
+
+	procfn = replace_name(fullpath, extension, ".skipped");
+	if (!procfn) {
+		fprintf(stderr, "+  Problems with filename manipulation for %s\n", fullpath);
+		return;
+	}
+
+	ret = rename(fullpath, procfn);
+	if (ret) {
+		fprintf(stderr, "+  Unable to move %s to %s\n", fullpath, procfn);
+		free(procfn);
+		return;
+	}
+
+	fprintf(stderr, "+  Moved %s to %s\n", fullpath, procfn);
+	free(procfn);
+	return;
+}
 
 /*
  * Use GDB to extract backtrace information from corefile
@@ -429,28 +451,50 @@ static void write_core_detail_file(struct oops *oops)
 	close(fd);
 }
 
+
+
 /*
- * Common function for processing core
- * files to generate oops structures and write *.txt
- * if not already present
+ * Creates $APP_$TIMESTAMP.txt report summaries if they don't exist and
+ * adds the oops struct to the submit queue
  */
-static struct oops *process_common(char *fullpath)
+static void *create_report(char *fullpath)
 {
 	struct oops *oops = NULL;
+	char *procfn = NULL;
 	char *app = NULL, *appname = NULL, *appfile = NULL, *corefn = NULL, *reportname = NULL;
+	char *old_ext = ".processed";
+	char *new_ext = ".to-process";
+	char *ext = NULL;
 	struct stat stat_buf;
+	int new = 0, ret;
+
+	fprintf(stderr, "+ Entered create_report() for %s\n", fullpath);
+
+	if (strstr(fullpath, ".to-process")) {
+		new = 1;
+		ext = new_ext;
+	} else if (strstr(fullpath, ".processed")) {
+		ext = old_ext;
+	} else if (strstr(fullpath, ".skipped")) {
+		fprintf(stderr, "+  Already skipped\n");
+		return NULL;
+	} else { /* bad state */
+		fprintf(stderr, "+  Missing extension? (%s)\n", fullpath);
+		unlink(fullpath);
+		return NULL;
+	}
 
 	corefn = strip_directories(fullpath);
 	if (!corefn) {
-		fprintf(stderr, "+ No corefile? (%s)\n", fullpath);
+		fprintf(stderr, "+  No corefile? (%s)\n", fullpath);
 		return NULL;
 	}
 
 	/* don't process rpm, gdb or corewatcher crashes */
 	appname = find_causingapp(fullpath);
 	if (!appname) {
-		fprintf(stderr, "+ No appname in %s\n", corefn);
-		move_core(fullpath, "skipped");
+		fprintf(stderr, "+  No appname in %s\n", corefn);
+		skip_core(fullpath, ext);
 		free(corefn);
 		return NULL;
 	}
@@ -459,8 +503,8 @@ static struct oops *process_common(char *fullpath)
 	    !strncmp(app, "rpm", 3) ||
 	    !strncmp(app, "gdb", 3) ||
 	    !strncmp(app, "corewatcher", 11)) {
-		fprintf(stderr, "+ ...skipping %s's %s\n", app, corefn);
-		move_core(fullpath, "skipped");
+		fprintf(stderr, "+  ...skipping %s's %s\n", app, corefn);
+		skip_core(fullpath, ext);
 		free(corefn);
 		free(appname);
 		free(app);
@@ -470,8 +514,8 @@ static struct oops *process_common(char *fullpath)
 	/* also skip apps which don't appear to be part of the OS */
 	appfile = find_apppath(appname);
 	if (!appfile) {
-		fprintf(stderr, "+ ...skipping %s's %s\n", appname, corefn);
-		move_core(fullpath, "skipped");
+		fprintf(stderr, "+  ...skipping %s's %s\n", appname, corefn);
+		skip_core(fullpath, ext);
 		free(corefn);
 		free(appname);
 		free(app);
@@ -482,7 +526,7 @@ static struct oops *process_common(char *fullpath)
 
 	reportname = make_report_filename(corefn);
 	if (!reportname) {
-		fprintf(stderr, "+ Couldn't make report name for %s\n", corefn);
+		fprintf(stderr, "+  Couldn't make report name for %s\n", corefn);
 		free(corefn);
 		free(appfile);
 		return NULL;
@@ -492,14 +536,14 @@ static struct oops *process_common(char *fullpath)
 		int fd, ret;
 		/*
 		 * TODO:
-		 *   If the file already has trailing ".processed" and the txt file
+		 *   If the file already had trailing ".processed" but the txt file
 		 *   is a low quality report, then create a new report.
 		 */
-		fprintf(stderr, "+ Report already exists in %s\n", reportname);
+		fprintf(stderr, "+  Report already exists in %s\n", reportname);
 
 		oops = malloc(sizeof(struct oops));
 		if (!oops) {
-			fprintf(stderr, "+ Malloc failed for struct oops\n");
+			fprintf(stderr, "+  Malloc failed for struct oops\n");
 			free(reportname);
 			free(appfile);
 			return NULL;
@@ -515,74 +559,46 @@ static struct oops *process_common(char *fullpath)
 
 		oops->text = malloc(stat_buf.st_size + 1);
 		if (!oops->text) {
-			fprintf(stderr, "+ Malloc failed for oops text\n");
+			fprintf(stderr, "+  Malloc failed for oops text\n");
 			goto err;
 		}
 		fd = open(oops->detail_filename, O_RDONLY);
 		if (fd == -1) {
-			fprintf(stderr, "+ Open failed for oops text\n");
+			fprintf(stderr, "+  Open failed for oops text\n");
 			goto err;
 		}
 		ret = read(fd, oops->text, stat_buf.st_size);
 		close(fd);
 		if (ret != stat_buf.st_size) {
-			fprintf(stderr, "+ Read failed for oops text\n");
+			fprintf(stderr, "+  Read failed for oops text\n");
 			goto err;
 		}
 		oops->text[stat_buf.st_size] = '\0';
-		return oops;
-	}
+	} else {
+		oops = extract_core(fullpath, appfile, reportname);
+		free(reportname);
+		free(appfile);
 
-	oops = extract_core(fullpath, appfile, reportname);
-	if (!oops)
-		goto err;
-
-	write_core_detail_file(oops);
-	free(reportname);
-	free(appfile);
-	return oops;
-err:
-	FREE_OOPS(oops);
-	return NULL;
-}
-
-
-/*
- * Creates $APP_$TIMESTAMP.txt report summaries if they don't exist and
- * adds the oops struct to the submit queue
- */
-static void *create_report(char *fullpath)
-{
-	struct oops *oops = NULL;
-	char *procfn = NULL;
-	int new = 0, ret;
-
-	fprintf(stderr, "+ Entered create_report() for %s\n", fullpath);
-
-	/*
- 	 * If the file has trailing ".to-process", create a new report.
-	 */
-	if (strstr(fullpath, ".to-process"))
-		new = 1;
-
-	oops = process_common(fullpath);
-	if (!oops) {
-		fprintf(stderr, "+ Did not generate struct oops for %s\n", fullpath);
-		move_core(fullpath, "skipped");
-		return NULL;
+		if (!oops) {
+			fprintf(stderr, "+  Did not generate struct oops for %s\n", fullpath);
+			skip_core(fullpath, ext);
+			return NULL;
+		}
+		write_core_detail_file(oops);
 	}
 
 	if (new) {
-		procfn = replace_name(fullpath, ".to-process", ".processed");
+		fprintf(stderr, "+  Renaming %s (%s -> %s)\n", fullpath, new_ext, old_ext);
+		procfn = replace_name(fullpath, new_ext, old_ext);
 		if (!procfn) {
-			fprintf(stderr, "+ Problems with filename manipulation for %s\n", fullpath);
-			goto clean_process_new;
+			fprintf(stderr, "+  Problems with filename manipulation for %s\n", fullpath);
+			return oops;
 		}
 		ret = rename(fullpath, procfn);
 		if (ret) {
-			fprintf(stderr, "+ Unable to move %s to %s\n", fullpath, procfn);
+			fprintf(stderr, "+  Unable to move %s to %s\n", fullpath, procfn);
 			free(procfn);
-			goto clean_process_new;
+			return oops;
 		}
 		free(oops->filename);
 		oops->filename = strdup(procfn);
@@ -590,8 +606,7 @@ static void *create_report(char *fullpath)
 	}
 
 	return oops;
-
-clean_process_new:
+err:
 	FREE_OOPS(oops);
 	return NULL;
 }
