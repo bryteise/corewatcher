@@ -229,7 +229,7 @@ static struct oops *extract_core(char *fullpath, char *appfile, char *reportname
 
 	fprintf(stderr, "+ extract_core() called for %s\n", fullpath);
 
-	if (asprintf(&command, "LANG=C gdb --batch -f '%s' '%s' -x /etc/corewatcher/gdb.command 2> /dev/null", appfile, fullpath) == -1)
+	if (asprintf(&command, "LANG=C gdb --batch -f '%s' '%s' -x /etc/corewatcher/gdb.command 2>&1", appfile, fullpath) == -1)
 		return NULL;
 
 	file = popen(command, "r");
@@ -263,6 +263,19 @@ static struct oops *extract_core(char *fullpath, char *appfile, char *reportname
 			break;
 		if (bytesread == -1)
 			break;
+
+		/* gdb outputs (to stderr) two strings starting with "warning: ":
+		 *    warning: core file may not match specified executable file.
+		 *    warning: exec file is newer than core file.
+		 * We can't trust the gdb 'bt' if these are seen.
+		 */
+		if (strncmp(line, "warning: ", 9) == 0) {
+			free(line);
+			pclose(file);
+			free(h1);
+			fprintf(stderr, "+ core/executable mismatch for %s\n", fullpath);
+			return NULL;
+		}
 
 		/* try to figure out if we're onto the maps output yet */
 		if (strncmp(line, "From", 4) == 0) {
@@ -521,6 +534,9 @@ static struct oops *process_common(char *fullpath)
 	}
 
 	oops = extract_core(fullpath, appfile, reportname);
+	if (!oops)
+		goto err;
+
 	write_core_detail_file(oops);
 	free(reportname);
 	free(appfile);
@@ -552,6 +568,7 @@ static void *create_report(char *fullpath)
 	oops = process_common(fullpath);
 	if (!oops) {
 		fprintf(stderr, "+ Did not generate struct oops for %s\n", fullpath);
+		move_core(fullpath, "skipped");
 		return NULL;
 	}
 
