@@ -286,12 +286,11 @@ static struct oops *extract_core(char *fullpath, char *appfile, char *reportname
 		if (bytesread == -1)
 			break;
 
-		/* gdb outputs (to stderr) two strings starting with "warning: ":
-		 *    warning: core file may not match specified executable file.
-		 *    warning: exec file is newer than core file.
-		 * We can't trust the gdb 'bt' if these are seen.
+		/* gdb outputs (to stderr) many "warning: " strings
+		 * We can't trust the gdb 'bt' if these two are seen.
 		 */
-		if (strncmp(line, "warning: ", 9) == 0) {
+		if ((strncmp(line, "warning: core file may not match specified executable file.", 59) == 0) ||
+		    (strncmp(line, "warning: exec file is newer than core file.", 43))) {
 			free(line);
 			pclose(file);
 			free(h1);
