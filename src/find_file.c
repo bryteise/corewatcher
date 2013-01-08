@@ -23,50 +23,21 @@
 
 #include "corewatcher.h"
 
-/* Attempt to find a file which would match the path/file fragment and
+/*
+ * Attempt to find a file which would match the application name and
  * possibly represent a system binary.  We'll get more checking later when
  * we call gdb.  This is just a best effort candidate executable file to
- * hand to gdb along with a core. */
-char *find_apppath(char *fragment)
+ * hand to gdb along with a core.
+ */
+char *find_apppath(char *appname)
 {
-	char *path = "/usr/bin";         /* ':' sep'd system path */
+	/* ':' sep'd system path */
+	char *path = "/usr/bin:/usr/sbin:/bin:/sbin";
 	char *c1, *c2;
 	char *filename = NULL;
-	char *candidate = NULL;
 	char *apppath = NULL;
-	int stripped = 0;
 
-	fprintf(stderr, "+ Looking for %s\n", fragment);
-
-	/* explicit absolute path in standard system locations */
-	if (!strncmp(fragment, "/usr/bin", 8) ||
-	    !strncmp(fragment, "/opt/google/chrome", 18)) {
-		if (!access(fragment, X_OK)) {
-			fprintf(stderr, "+  found system executable %s\n", fragment);
-			return strdup(fragment);
-		}
-		fprintf(stderr, "+  can't access system executable %s\n", fragment);
-		return NULL;
-	}
-
-	/* explicit absolute path not in the standard directory */
-	if (!strncmp(fragment, "/", 1)) {
-		fprintf(stderr, "+  bad absolute path %s\n", fragment);
-		return NULL;
-	}
-
-        /* relative path: problematic as we cannot at this point know the
-	 * $PATH from the environment when the crash'd program started */
-	if (strchr(fragment, '/')) {
-	        candidate = strip_directories(fragment);
-		fprintf(stderr, "+  stripped %s to %s\n", fragment, candidate);
-		if (candidate == NULL)
-			return NULL;
-		stripped = 1;
-	} else {
-		/* fragment is just an executable's name */
-		candidate = fragment;
-	}
+	fprintf(stderr, "+ Looking for %s\n", appname);
 
 	/* search the path */
 	c1 = path;
@@ -76,7 +47,7 @@ char *find_apppath(char *fragment)
 		c2 = strchr(c1, ':');
 		if (c2) *c2=0;
 		fprintf(stderr, "+  looking in %s\n", c1);
-		if(asprintf(&filename, "%s/%s", c1, candidate) == -1) {
+		if(asprintf(&filename, "%s/%s", c1, appname) == -1) {
 			apppath = NULL;
 			free(filename);
 			goto out;
@@ -90,76 +61,42 @@ char *find_apppath(char *fragment)
 		if (c2) c1++;
 	}
 out:
-	if (stripped)
-		free(candidate);
 	return apppath;
 }
 
+/*
+ * Attempt to find application name from the core file name.
+ */
 char *find_causingapp(char *fullpath)
 {
-	char *line = NULL, *line_len = NULL, *c = NULL, *c2 = NULL;
-	size_t size = 0;
-	FILE *file = NULL;
-	char *app = NULL, *command = NULL;
+	char *fp = NULL, *c1 = NULL, *c2 = NULL;
+	char *app = NULL;
 
-	if (asprintf(&command, "eu-readelf -n '%s'", fullpath) == -1)
-		return NULL;
+	fp = strdup(fullpath);
+	if (!fp)
+		goto no_app_name;
 
-	file = popen(command, "r");
-	if (!file) {
-		free(command);
-		return NULL;
-	}
-	free(command);
+	/*
+	 * looking for application name from a string of the form:
+	 * "/path/to/core_appname_timestamp.pid.extension"
+	 */
+	c1 = strrchr(fp, '_');
+	if (!c1)
+		goto no_app_name;
+	*c1 = 0;
+	c1 = strrchr(fp, '/');
+	if (!c1)
+		goto no_app_name;
+	c2 = c1 + 1;
+	if (!c2)
+		goto no_app_name;
+	c1 = strchr(c2, '_');
+	if (!c1)
+		goto no_app_name;
+	*c1 = 0;
+	app = strdup(c1+1);
 
-	while (!feof(file)) {
-		if (getline(&line, &size, file) == -1)
-			break;
-
-		/* lines 4 chars and under won't have information we need */
-		if (size < 5)
-			continue;
-
-		line_len = line + size;
-		c = strstr(line,"psargs: ");
-		if (c) {
-			c += 8;
-			if (c < line_len) {
-				c2 = strchr(c, ' ');
-				if (c2)
-					*c2 = 0;
-				c2 = strchr(c, '\n');
-				if (c2)
-					*c2 = 0;
-				app = strdup(c);
-
-				fprintf(stderr,"+ causing app: %s\n", app);
-			}
-		}
-
-		c = strstr(line, "EUID: ");
-		if (c) {
-			c += 6;
-			if (c < line_len) {
-				int uid;
-				sscanf(c, "%i", &uid);
-				fprintf(stderr, "+ uid: %d\n", uid);
-			}
-		}
-
-		c = strstr(line, "cursig: ");
-		if (c) {
-			c += 8;
-			if (c < line_len) {
-				int sig;
-				sscanf(c, "%i", &sig);
-				fprintf(stderr, "+ sig: %d\n", sig);
-			}
-		}
-	}
-
-	pclose(file);
-	free(line);
-
+no_app_name:
+	free(fp);
 	return app;
 }
