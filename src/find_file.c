@@ -32,7 +32,7 @@
 char *find_apppath(char *appname)
 {
 	/* ':' sep'd system path */
-	char *path = "/usr/bin:/usr/sbin:/bin:/sbin";
+	char path[] = "/usr/bin:/usr/sbin:/bin:/sbin";
 	char *c1, *c2;
 	char *filename = NULL;
 	char *apppath = NULL;
