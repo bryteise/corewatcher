@@ -290,7 +290,7 @@ static struct oops *extract_core(char *fullpath, char *appfile, char *reportname
 		 * We can't trust the gdb 'bt' if these two are seen.
 		 */
 		if ((strncmp(line, "warning: core file may not match specified executable file.", 59) == 0) ||
-		    (strncmp(line, "warning: exec file is newer than core file.", 43))) {
+		    (strncmp(line, "warning: exec file is newer than core file.", 43) == 0)) {
 			free(line);
 			pclose(file);
 			free(h1);
