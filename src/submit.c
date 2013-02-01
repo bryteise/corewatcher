@@ -237,6 +237,7 @@ void *submit_loop(void __unused *unused)
 			failcount = 0;
 
 			curl_easy_setopt(handle, CURLOPT_URL, submit_url[i]);
+			curl_easy_setopt(handle, CURLOPT_SSL_VERIFYPEER, 0L);
 
 			/* check the connection before POSTing form */
 			result = curl_easy_perform(handle);
@@ -261,6 +262,7 @@ void *submit_loop(void __unused *unused)
 					CURLFORM_COPYNAME, "crash",
 					CURLFORM_COPYCONTENTS, oops->text, CURLFORM_END);
 				curl_easy_setopt(handle, CURLOPT_HTTPPOST, post);
+				curl_easy_setopt(handle, CURLOPT_POSTREDIR, 0L);
 				curl_easy_setopt(handle, CURLOPT_WRITEFUNCTION, writefunction);
 				result = curl_easy_perform(handle);
 				curl_formfree(post);
