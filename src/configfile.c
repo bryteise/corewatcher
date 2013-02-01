@@ -91,7 +91,7 @@ void read_config_file(char *filename)
 		if (c && url_count <= MAX_URLS) {
 			c += 11;
 			if (c < line_end) {
-				c = strstr(c, "http:");
+				c = strstr(c, "http");
 				if (c) {
 					submit_url[url_count] = strdup(c);
 					if (!submit_url[url_count])
@@ -107,7 +107,7 @@ void read_config_file(char *filename)
 	free(line);
 
 	if (!url_count) {
-		submit_url[url_count] = strdup("http://kojibuild7.jf.intel.com/crash_submit/");
+		submit_url[url_count] = strdup("");
 		if (!submit_url[url_count])
 			submit_url[url_count] = NULL;
 		else
