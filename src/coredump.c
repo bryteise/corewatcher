@@ -757,6 +757,17 @@ void enable_corefiles(int diskfree)
 	if (ret == -1)
 		goto err;
 
+	proc_core_string = NULL;
+	ret = asprintf(&proc_core_string,
+			"echo 1 > /proc/sys/kernel/core_uses_pid");
+	if (ret == -1)
+		goto err;
+
+	ret = system(proc_core_string);
+	free(proc_core_string);
+	if (ret == -1)
+		goto err;
+
 	if (diskfree == -1) {
 		fprintf(stderr, "+ enabled core pattern\n");
 		syslog(LOG_INFO, "corewatcher: enabled kernel core_pattern\n");
