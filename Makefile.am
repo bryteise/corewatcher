@@ -9,9 +9,9 @@ dist_corewatcherconf_DATA = \
 	gdb.command \
 	corewatcher.conf
 
-sysctldir = $(sysconfdir)/sysctl.d
+limitsdir = $(sysconfdir)/security/limits.d
 
-dist_sysctl_DATA = 95-core.conf
+dist_limits_DATA = 95-core.conf
 
 systemdunitdir = $(prefix)/lib/systemd/system
 dist_systemdunit_DATA = src/corewatcher.service
