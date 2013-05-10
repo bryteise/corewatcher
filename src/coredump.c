@@ -58,34 +58,78 @@ static int diskfree = 100;
 static char *get_release(void)
 {
 	FILE *file = NULL;
-	char *line = NULL;
-	size_t dummy = 0;
+	char *release = NULL;
+	char *buf = NULL;
+	char *tbuf = NULL;
+	long bufsize;
+	int r;
+	int unused  __attribute__((unused));
 
 	file = fopen("/etc/os-release", "r");
 	if (!file)
 		return NULL;
 
-	while (!feof(file)) {
-		if (getline(&line, &dummy, file) == -1)
-			break;
-		if (strstr(line, "VERSION_ID=")) {
-			char *c = NULL;
+	r = fseek(file, 0L, SEEK_END);
+	if (r == -1)
+		goto out;
 
-			c = strchr(line, '\n');
-			if (c) {
-				*c = 0;
-				c = strdup(&line[11]);
-				fclose(file);
-				free(line);
-				return c;
+	bufsize = ftell(file);
+	if (bufsize == -1)
+		goto out;
+
+	buf = calloc(bufsize + 1, sizeof(char));
+	if (!buf)
+		goto out;
+
+	r = fseek(file, 0L, SEEK_SET);
+	if (r == -1)
+		goto out;
+
+	unused = fread(buf, sizeof(char), bufsize, file);
+	if (ferror(file))
+		goto out;
+
+	tbuf = buf;
+	while(1) {
+		char *c = strchr(tbuf, '\n');
+
+		if (!c)
+			break;
+		*c = 0;
+
+		if (release) {
+			char *t = release;
+			release = NULL;
+			r = asprintf(&release, "%s        %s\n", t, tbuf);
+			free(t);
+			if (r == -1) {
+				release = NULL;
+				goto out;
+			}
+		} else {
+			r = asprintf(&release, "        %s\n", tbuf);
+			if (r == -1) {
+				release = NULL;
+				goto out;
 			}
 		}
+		/*
+		 * os-release ends with a '\n', buf adds an extra NUL
+		 * char after that last '\n' so if the next char after
+		 * a '\n' is NUL we are done
+		 */
+		if (!*(c + 1))
+			break;
+
+		tbuf = c + 1;
 	}
 
+out:
 	fclose(file);
-	free(line);
+	if (buf)
+		free(buf);
 
-	return NULL;
+	return release;
 }
 
 /*
@@ -267,13 +311,9 @@ static struct oops *extract_core(char *fullpath, char *appfile, char *reportname
 
 	ret = asprintf(&h1,
 		       "cmdline: %s\n"
-		       "release: %s\n"
 		       "time: %s",
 		       appfile,
-		       release ? release : "Unknown",
 		       coretime ? coretime : "Unknown");
-	if (release)
-		free(release);
 	if (coretime)
 		free(coretime);
 	if (ret == -1)
@@ -359,11 +399,14 @@ static struct oops *extract_core(char *fullpath, char *appfile, char *reportname
 
 	ret = asprintf(&text,
 		       "%s"
+		       "release: |\n"
+		       "%s"
 		       "backtrace: |\n"
 		       "%s"
 		       "maps: |\n"
 		       "%s",
 		       h1,
+		       release ? release : "        Unknown\n",
 		       c1 ? c1 : "        Unknown\n",
 		       m1 ? m1 : "        Unknown\n");
 	free(h1);
@@ -371,6 +414,8 @@ static struct oops *extract_core(char *fullpath, char *appfile, char *reportname
 		free(c1);
 	if (m1)
 		free(m1);
+	if (release)
+		free(release);
 
 	if (ret == -1)
 		return NULL;
